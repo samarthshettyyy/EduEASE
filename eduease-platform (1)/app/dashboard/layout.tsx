@@ -1,18 +1,25 @@
 import type React from "react"
-import { Sidebar } from "@/components/dashboard/sidebar"
+import "@/app/globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
 
-export default function DashboardLayout({
+export const metadata = {
+  title: "AdaptLearn - Adaptive Learning Platform",
+  description: "Personalized learning for students with diverse learning needs",
+}
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
-      </div>
-    </div>
+    <html lang="en">
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
   )
 }
 
