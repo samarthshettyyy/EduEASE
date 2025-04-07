@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { WelcomeMessage } from "@/components/dashboard/welcome-message"
 import { LearningProgress } from "@/components/dashboard/learning-progress"
 import { UpcomingLessons } from "@/components/dashboard/upcoming-lessons"
@@ -9,138 +8,109 @@ import { RecommendedResources } from "@/components/dashboard/recommended-resourc
 import { Rooms } from "@/components/dashboard/rooms"
 import { VoiceAssistantWidget } from "@/components/voice-assistant-widget"
 import Link from "next/link"
-import { BookOpen, Video, MessageSquare, BarChart, Mic, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { toast } from "@/components/ui/use-toast"
+import { BookOpen, Video, MessageSquare, BarChart, Mic } from "lucide-react"
 
 export default function DashboardPage() {
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
-  const router = useRouter()
-
-  const handleLogout = async () => {
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (response.ok) {
-        toast({
-          title: "Logged out successfully",
-          description: "You have been logged out of your account.",
-        })
-        router.push("/")
-      } else {
-        throw new Error("Logout failed")
-      }
-    } catch (error) {
-      console.error("Logout error:", error)
-      toast({
-        title: "Logout failed",
-        description: "An error occurred during logout. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <WelcomeMessage />
-        <Button 
-          variant="outline" 
-          onClick={handleLogout} 
-          className="flex items-center gap-2"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
-      </div>
+    <div className="p-6">
+      <WelcomeMessage />
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <div className="rounded-lg border bg-card text-card-foreground shadow">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        {/* Left column - Today's Schedule */}
+        <div className="md:col-span-2">
+          <div className="rounded-lg border bg-card text-card-foreground shadow mb-6">
             <div className="p-6">
               <h3 className="text-lg font-semibold tracking-tight mb-4">Today's Schedule</h3>
               <UpcomingLessons />
             </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-lg border bg-card text-card-foreground shadow">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold tracking-tight mb-4">Learning Progress</h3>
-                <LearningProgress />
-              </div>
+        </div>
+        
+        {/* Right column - Rooms */}
+        <div>
+          <div className="rounded-lg border bg-card text-card-foreground shadow mb-6">
+            <div className="p-6">
+              <Link href="/classroom">
+              <h3 className="text-lg font-semibold tracking-tight mb-4">Rooms</h3>
+              <Rooms />
+              </Link>
             </div>
-            
-            <div className="rounded-lg border bg-card text-card-foreground shadow">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold tracking-tight mb-4">Weekly Goals</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span>Complete 5 lessons</span>
-                    <span className="font-medium">3/5</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '60%' }}></div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span>Practice 30 minutes daily</span>
-                    <span className="font-medium">4/7 days</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '57%' }}></div>
-                  </div>
-                </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Three boxes in a row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {/* Learning Progress */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold tracking-tight mb-4">Learning Progress</h3>
+            <LearningProgress />
+          </div>
+        </div>
+        
+        {/* Weekly Goals */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold tracking-tight mb-4">Weekly Goals</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span>Complete 5 lessons</span>
+                <span className="font-medium">3/5</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className="bg-primary h-2.5 rounded-full" style={{ width: '60%' }}></div>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span>Practice 30 minutes daily</span>
+                <span className="font-medium">4/7 days</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className="bg-primary h-2.5 rounded-full" style={{ width: '57%' }}></div>
               </div>
             </div>
           </div>
         </div>
         
-        <div className="space-y-6">
-          {/* New Rooms section */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold tracking-tight mb-4">Rooms</h3>
-              <Rooms />
+        {/* Quick Actions */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold tracking-tight mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Link href="/dashboard/lessons" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">
+                <BookOpen className="h-6 w-6 text-primary mb-2" />
+                <span className="text-sm">Start Lesson</span>
+              </Link>
+              <Link href="/dashboard/video-sessions" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">   
+                <Video className="h-6 w-6 text-primary mb-2" /> 
+                <span className="text-sm">Join Session</span> 
+              </Link>
+              <button 
+                onClick={() => setIsVoiceAssistantOpen(true)}
+                className="flex flex-col items-center justify-center p-4 rounded-lg border bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-colors"
+              >
+                <Mic className="h-6 w-6 mb-2" />
+                <span className="text-sm">Ask AI</span>
+              </button>
+              <Link href="/dashboard/progress" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">
+                <BarChart className="h-6 w-6 text-primary mb-2" />
+                <span className="text-sm">View Progress</span>
+              </Link>
             </div>
           </div>
-          
+        </div>
+      </div>
+      
+      {/* Recommended Resources - Using the same width as Today's Schedule (2/3 width) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
           <div className="rounded-lg border bg-card text-card-foreground shadow">
             <div className="p-6">
               <h3 className="text-lg font-semibold tracking-tight mb-4">Recommended Resources</h3>
               <RecommendedResources />
-            </div>
-          </div>
-          
-          <div className="rounded-lg border bg-card text-card-foreground shadow">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold tracking-tight mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Link href="/dashboard/lessons" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">
-                  <BookOpen className="h-6 w-6 text-primary mb-2" />
-                  <span className="text-sm">Start Lesson</span>
-                </Link>
-                <Link href="/dashboard/video-sessions" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">   
-                  <Video className="h-6 w-6 text-primary mb-2" /> 
-                  <span className="text-sm">Join Session</span> 
-                </Link>
-                <button 
-                  onClick={() => setIsVoiceAssistantOpen(true)}
-                  className="flex flex-col items-center justify-center p-4 rounded-lg border bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-colors"
-                >
-                  <Mic className="h-6 w-6 mb-2" />
-                  <span className="text-sm">Ask AI</span>
-                </button>
-                <Link href="/dashboard/progress" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">
-                  <BarChart className="h-6 w-6 text-primary mb-2" />
-                  <span className="text-sm">View Progress</span>
-                </Link>
-              </div>
             </div>
           </div>
         </div>
