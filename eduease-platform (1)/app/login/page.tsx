@@ -32,23 +32,47 @@ export default function LoginPage() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
 
-    // Simulate login process
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      })
 
-      // In a real app, you would validate credentials with your backend
-      console.log(values)
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed")
+      }
 
       toast({
         title: "Login successful",
         description: "Welcome back to EduEase!",
       })
 
-      router.push("/dashboard")
-    }, 1500)
+      // Redirect based on user role
+      if (data.user.role === "admin") {
+        router.push("/admin/dashboard")
+      } else if (data.user.role === "teacher") {
+        router.push("/teacher/dashboard")
+      } else {
+        router.push("/dashboard")
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+      toast({
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "Invalid credentials",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -111,4 +135,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

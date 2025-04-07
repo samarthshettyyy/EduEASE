@@ -67,8 +67,9 @@ export default function AssessmentPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!selectedOption) {
       toast({
         title: "Please select an option",
@@ -85,17 +86,41 @@ export default function AssessmentPage() {
       setCurrentQuestion(currentQuestion + 1)
       setSelectedOption(null)
     } else {
-      // Assessment complete
-      toast({
-        title: "Assessment complete",
-        description: "Your learning profile has been created.",
-      })
-
-      // In a real app, you would send the answers to your backend
-      console.log("Assessment answers:", newAnswers)
-
-      // Navigate to dashboard
-      router.push("/dashboard")
+      // Submit all answers
+      setIsLoading(true)
+      
+      try {
+        const response = await fetch("/api/assessment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ answers: newAnswers }),
+        })
+        
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to save assessment")
+        }
+        
+        toast({
+          title: "Assessment complete",
+          description: "Your learning profile has been created.",
+        })
+        
+        // Navigate to dashboard
+        router.push("/dashboard")
+      } catch (error) {
+        console.error("Assessment error:", error)
+        toast({
+          title: "Assessment failed",
+          description: error instanceof Error ? error.message : "An error occurred saving your assessment",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -139,12 +164,11 @@ export default function AssessmentPage() {
           <Button variant="outline" onClick={handlePrevious} disabled={currentQuestion === 0}>
             Previous
           </Button>
-          <Button onClick={handleNext}>
-            {currentQuestion < assessmentQuestions.length - 1 ? "Next" : "Complete Assessment"}
+          <Button onClick={handleNext} disabled={isLoading}>
+            {isLoading ? "Saving..." : currentQuestion < assessmentQuestions.length - 1 ? "Next" : "Complete Assessment"}
           </Button>
         </CardFooter>
       </Card>
     </div>
   )
 }
-

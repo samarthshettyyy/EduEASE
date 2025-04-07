@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -27,25 +27,20 @@ const userSchema = z.object({
 })
 
 const studentSchema = userSchema.extend({
-  age: z.string().min(1, {
-    message: "Please enter your age.",
-  }),
-  disabilityType: z.enum(["dyslexia", "autism", "both", "other"]),
-  grade: z.string().min(1, {
-    message: "Please select your grade.",
-  }),
-  language: z.string().min(1, {
-    message: "Please select your preferred language.",
-  }),
+  age: z.string().optional(),
+  disabilityType: z.enum(["dyslexia", "autism", "both", "other"]).optional(),
+  grade: z.string().optional(),
+  language: z.string().optional(),
 })
 
 export default function RegisterPage() {
   const router = useRouter()
   const [role, setRole] = useState("student")
   const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<z.infer<typeof studentSchema>>({
-    resolver: zodResolver(studentSchema),
+    resolver: zodResolver(step === 1 ? userSchema : studentSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -58,22 +53,71 @@ export default function RegisterPage() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof studentSchema>) {
+  // Update the role value in the form whenever it changes
+  useEffect(() => {
+    form.setValue("role", role);
+  }, [role, form]);
+
+  async function onSubmit(values: z.infer<typeof studentSchema>) {
+    console.log("Form submitted", values, "Current step:", step);
+    
     if (step === 1) {
-      setStep(2)
-      return
+      console.log("Trying to move to step 2");
+      setStep(2);
+      console.log("Step should now be 2");
+      return;
     }
 
-    // In a real app, you would send this data to your backend
-    console.log(values)
+    setIsLoading(true);
 
-    toast({
-      title: "Registration initiated",
-      description: "Please upload your disability certificate in the next step.",
-    })
+    try {
+      // Add additional validation for step 2 if the role is student
+      if (role === "student") {
+        if (!values.age || !values.disabilityType || !values.grade || !values.language) {
+          toast({
+            title: "Missing information",
+            description: "Please fill in all required fields",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
 
-    // Navigate to certificate upload page
-    router.push("/register/certificate-upload")
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      toast({
+        title: "Registration initiated",
+        description: "Please upload your disability certificate in the next step.",
+      });
+
+      // Store user ID in session storage for the certificate upload
+      sessionStorage.setItem("userId", data.userId.toString());
+
+      // Navigate to certificate upload page
+      router.push("/register/certificate-upload");
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Registration failed",
+        description: error instanceof Error ? error.message : "An error occurred during registration",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -239,8 +283,8 @@ export default function RegisterPage() {
               </>
             )}
 
-            <Button type="submit" className="w-full">
-              {step === 1 ? "Next" : "Continue to Certificate Upload"}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Processing..." : step === 1 ? "Next" : "Continue to Certificate Upload"}
             </Button>
           </form>
         </Form>
@@ -255,4 +299,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
