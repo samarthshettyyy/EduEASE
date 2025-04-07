@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(135deg, #6e8efb, #a777e3);
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #333;
+    }
+    
+    .container {
+        width: 90%;
+        max-width: 500px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        padding: 30px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    h1 {
+        font-size: 2rem;
+        color: #333;
+        margin-bottom: 20px;
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .mic-wrapper {
+        display: flex;
+        justify-content: center;
+        margin: 30px 0;
+    }
+    
+    .mic-btn {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #6e8efb, #a777e3);
+        color: white;
+        font-size: 1.8rem;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        outline: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .mic-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .mic-btn:active {
+        transform: scale(0.95);
+        background: linear-gradient(135deg, #5d7de0, #9169c9);
+    }
+    
+    .listening {
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(174, 139, 227, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 15px rgba(174, 139, 227, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(174, 139, 227, 0);
+        }
+    }
+    
+    #response-text {
+        text-align: center;
+        font-size: 1rem;
+        margin: 20px 0;
+        min-height: 50px;
+        color: #555;
+        font-weight: 500;
+    }
+    
+    #conversation-history {
+        margin-top: 30px;
+        max-height: 300px;
+        overflow-y: auto;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+        scroll-behavior: smooth;
+    }
+    
+    .history-entry {
+        margin-bottom: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .user-input {
+        background-color: #f0f7ff;
+        padding: 12px 15px;
+        border-radius: 10px 10px 0 0;
+        font-weight: 500;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+    }
+    
+    .user-input::before {
+        content: '\f007';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        margin-right: 10px;
+        color: #6e8efb;
+    }
+    
+    .ai-response {
+        background-color: #f8f1ff;
+        padding: 12px 15px;
+        border-radius: 0 0 10px 10px;
+        color: #2c3e50;
+        display: flex;
+        align-items: flex-start;
+    }
+    
+    .ai-response::before {
+        content: '\f544';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        margin-right: 10px;
+        color: #a777e3;
+    }
+    
+    /* Custom scrollbar */
+    #conversation-history::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    #conversation-history::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    #conversation-history::-webkit-scrollbar-thumb {
+        background: #a777e3;
+        border-radius: 10px;
+    }
+    
+    #conversation-history::-webkit-scrollbar-thumb:hover {
+        background: #6e8efb;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .container {
+            width: 95%;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-size: 1.7rem;
+        }
+        
+        .mic-btn {
+            width: 70px;
+            height: 70px;
+        }
+    }
+</style>
+
+<body>
+    <div class="container">
+        <h1><i class="fas fa-robot"></i> AI Voice Assistant</h1>
+        
+        <div id="response-text">Ready to assist you</div>
+        
+        <div class="mic-wrapper">
+            <button id="start-record-btn" class="mic-btn">
+                <i class="fas fa-microphone"></i>
+            </button>
+        </div>
+
+        <div id="conversation-history">
+            <!-- Conversation history will be dynamically updated here -->
+        </div>
+    </div>
+
+    <script>
+        const startRecordBtn = document.getElementById('start-record-btn');
+        const responseText = document.getElementById('response-text');
+        const conversationHistory = document.getElementById('conversation-history');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onstart = function() {
+            responseText.innerHTML = '<i class="fas fa-waveform"></i> Listening...';
+            startRecordBtn.classList.add('listening');
+        };
+
+        recognition.onspeechend = function() {
+            recognition.stop();
+            startRecordBtn.classList.remove('listening');
+        };
+
+        recognition.onresult = function(event) {
+            const userInput = event.results[0][0].transcript;
+            responseText.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+
+            // Send user input to Flask server
+            fetch('/process_voice', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ user_input: userInput }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const aiResponse = data.response;
+                responseText.innerHTML = 'Ready to assist you';
+
+                // Update conversation history with both user input and AI response
+                updateConversationHistory(data.conversation_history);
+
+                speakResponse(aiResponse);
+            })
+            .catch(error => {
+                responseText.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error processing request.';
+                setTimeout(() => {
+                    responseText.innerHTML = 'Ready to assist you';
+                }, 3000);
+            });
+        };
+
+        startRecordBtn.addEventListener('click', () => {
+            recognition.start();
+        });
+
+        // Update the conversation history section
+        function updateConversationHistory(history) {
+            conversationHistory.innerHTML = '';  // Clear existing history
+
+            history.forEach(entry => {
+                const historyEntry = document.createElement('div');
+                historyEntry.classList.add('history-entry');
+
+                const userInput = document.createElement('div');
+                userInput.classList.add('user-input');
+                userInput.innerHTML = `${entry.user}`;
+
+                const aiResponse = document.createElement('div');
+                aiResponse.classList.add('ai-response');
+                aiResponse.innerHTML = `${entry.ai}`;
+
+                historyEntry.appendChild(userInput);
+                historyEntry.appendChild(aiResponse);
+
+                conversationHistory.appendChild(historyEntry);
+            });
+            
+            // Scroll to the bottom to show the latest message
+            conversationHistory.scrollTop = conversationHistory.scrollHeight;
+        }
+
+        // Use the SpeechSynthesis API to speak the AI response
+        function speakResponse(text) {
+            const synth = window.speechSynthesis;
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Optional: customize voice properties
+            utterance.rate = 1.0; // Speed of speech
+            utterance.pitch = 1.0; // Pitch of voice
+            
+            synth.speak(utterance);
+        }
+        
+        // Add keyboard shortcut for microphone (Space bar)
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space' && document.activeElement !== startRecordBtn) {
+                event.preventDefault();
+                startRecordBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>

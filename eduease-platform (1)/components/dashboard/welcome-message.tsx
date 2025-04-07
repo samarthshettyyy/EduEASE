@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { X, BookOpen, Award, Calendar } from "lucide-react"
+import { Name } from "drizzle-orm"
 
 export function WelcomeMessage() {
   const [isVisible, setIsVisible] = useState(true)

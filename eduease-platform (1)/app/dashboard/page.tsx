@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { WelcomeMessage } from "@/components/dashboard/welcome-message"
 import { LearningProgress } from "@/components/dashboard/learning-progress"
 import { UpcomingLessons } from "@/components/dashboard/upcoming-lessons"
@@ -8,14 +9,55 @@ import { RecommendedResources } from "@/components/dashboard/recommended-resourc
 import { Rooms } from "@/components/dashboard/rooms"
 import { VoiceAssistantWidget } from "@/components/voice-assistant-widget"
 import Link from "next/link"
-import { BookOpen, Video, MessageSquare, BarChart, Mic } from "lucide-react"
+import { BookOpen, Video, MessageSquare, BarChart, Mic, LogOut } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/use-toast"
 
 export default function DashboardPage() {
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Logged out successfully",
+          description: "You have been logged out of your account.",
+        })
+        router.push("/")
+      } else {
+        throw new Error("Logout failed")
+      }
+    } catch (error) {
+      console.error("Logout error:", error)
+      toast({
+        title: "Logout failed",
+        description: "An error occurred during logout. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
 
   return (
     <div className="space-y-6 p-6">
-      <WelcomeMessage />
+      <div className="flex justify-between items-center">
+        <WelcomeMessage />
+        <Button 
+          variant="outline" 
+          onClick={handleLogout} 
+          className="flex items-center gap-2"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </Button>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">

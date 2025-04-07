@@ -23,7 +23,7 @@ const userSchema = z.object({
   password: z.string().min(8, {
     message: "Password must be at least 8 characters.",
   }),
-  role: z.enum(["student", "teacher", "admin"]),
+  role: z.enum(["student", "teacher"]),
 })
 
 const studentSchema = userSchema.extend({
@@ -129,10 +129,9 @@ export default function RegisterPage() {
         </div>
 
         <Tabs defaultValue="student" className="w-full" onValueChange={setRole}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="student">Student</TabsTrigger>
             <TabsTrigger value="teacher">Teacher</TabsTrigger>
-            <TabsTrigger value="admin">Admin</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -293,6 +292,13 @@ export default function RegisterPage() {
           Already have an account?{" "}
           <Link href="/login" className="underline underline-offset-4 hover:text-primary">
             Login
+          </Link>
+        </p>
+        
+        <p className="px-8 text-center text-sm text-muted-foreground">
+          Admin?{" "}
+          <Link href="/login" className="underline underline-offset-4 hover:text-primary">
+            Login here
           </Link>
         </p>
       </div>
