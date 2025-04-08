@@ -145,22 +145,84 @@ function SignLanguageConverter() {
 }
 
 // Voice Recognition Component
-function VoiceNavigation() {
-  const [isListening, setIsListening] = useState(false)
-  const [command, setCommand] = useState("")
+function VoiceNavigation({ onVoiceCommand }: { onVoiceCommand: (command: string) => void }) {
+  const [isListening, setIsListening] = useState(false);
+  const [command, setCommand] = useState("");
 
   const toggleListening = () => {
-    setIsListening(!isListening)
     if (!isListening) {
-      // Simulate voice recognition
-      setTimeout(() => {
-        setCommand("next page")
-        setIsListening(false)
-      }, 3000)
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        alert("Speech Recognition is not supported in this browser.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        setCommand(transcript);
+
+        // Trigger action in parent
+        onVoiceCommand(transcript);
+
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
     } else {
-      setCommand("")
+      setIsListening(false);
+      setCommand("");
     }
-  }
+  };
+
+  function playBeep() {
+    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+  
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, context.currentTime); // A5 note
+    gainNode.gain.setValueAtTime(0.2, context.currentTime); // volume
+  
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+  
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.15); // short beep
+  }  
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Prevent spacebar from scrolling
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (!isListening) playBeep();
+        toggleListening();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isListening]);
 
   return (
     <Card className="mb-4">
@@ -186,12 +248,15 @@ function VoiceNavigation() {
           )}
         </div>
         <div className="mt-2">
-          <p className="text-xs text-muted-foreground">Try saying: "next page", "previous page", "go to chapter 3"</p>
+          <p className="text-xs text-muted-foreground">
+            Try saying: "read aloud", "next page", "go to chapter 3"
+          </p>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
+
 
 // Main Classroom Page Component
 export default function ClassroomPage() {
@@ -205,6 +270,17 @@ export default function ClassroomPage() {
   const [documentData, setDocumentData] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [processingError, setProcessingError] = useState(null)
+  const [isReading, setIsReading] = useState(false);
+
+  const handleVoiceCommand = (cmd: string) => {
+    if (cmd.includes("read aloud")) {
+      setIsReading(true); // Toggle reading
+    }
+
+    if (cmd.includes("stop reading")) {
+      setIsReading(false); // Toggle reading
+    }
+  };
 
   // Simulated content adaptation based on emotion
   const [contentLevel, setContentLevel] = useState("standard")
@@ -484,6 +560,7 @@ export default function ClassroomPage() {
                       sentences={documentData.sentences}
                       initialImportantWords={documentData.importantWords}
                       extractionStats={documentData.extractionStats}
+                      isReadingProp={isReading}
                     />
                   ) : (
                     // Default upload card (same as before)
@@ -697,7 +774,7 @@ export default function ClassroomPage() {
           {/* Sidebar - 1/3 width on desktop */}
           <div className="space-y-6">
             <EmotionDetector onEmotionDetected={handleEmotionDetected} />
-            <VoiceNavigation />
+            <VoiceNavigation onVoiceCommand={handleVoiceCommand}/>
             <SignLanguageConverter />
             
             {/* Telegram Bot Integration Component */}

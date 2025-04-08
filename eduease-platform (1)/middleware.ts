@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server"
 // Paths that require authentication
 const protectedPaths = [
   "/dashboard",
+  "/classroom",
   "/settings",
   "/teacher/dashboard",
   "/admin/dashboard",
