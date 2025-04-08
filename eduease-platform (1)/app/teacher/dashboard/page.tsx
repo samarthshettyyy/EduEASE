@@ -514,44 +514,47 @@ export default function TeacherDashboardPage() {
       </Card>
       
       {/* Quick Actions */}
-      <Card className="border bg-card text-card-foreground shadow">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xl">Quick Actions</CardTitle>
-          <CardDescription>Common tasks and shortcuts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Link href="/teacher/documents/upload">
-              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
-                <FileUp className="h-8 w-8 text-primary mb-2" />
-                <span className="text-sm font-medium text-center">Upload Learning Materials</span>
-              </div>
-            </Link>
-            
-            <Link href="/teacher/meetings/create">
-              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">  
-                <Video className="h-8 w-8 text-primary mb-2" /> 
-                <span className="text-sm font-medium text-center">Start Video Session</span> 
-              </div>
-            </Link>
-            
-            <button 
-              onClick={() => setIsVoiceAssistantOpen(true)}
-              className="flex flex-col items-center justify-center p-4 rounded-lg border bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-colors h-32"
-            >
-              <Mic className="h-8 w-8 mb-2" />
-              <span className="text-sm font-medium text-center">Ask AI</span>
-            </button>
-            
-            <Link href="/teacher/analytics">
-              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
-                <BarChart className="h-8 w-8 text-primary mb-2" />
-                <span className="text-sm font-medium text-center">View Analytics</span>
-              </div>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+      // Update to app/teacher/dashboard/page.tsx Quick Actions section
+
+// Replace the existing Quick Actions Card with this updated version
+<Card className="border bg-card text-card-foreground shadow">
+  <CardHeader className="pb-3">
+    <CardTitle className="text-xl">Quick Actions</CardTitle>
+    <CardDescription>Common tasks and shortcuts</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <Link href="/teacher/documents/upload">
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
+          <FileUp className="h-8 w-8 text-primary mb-2" />
+          <span className="text-sm font-medium text-center">Upload Learning Materials</span>
+        </div>
+      </Link>
+      
+      <Link href="/teacher/meetings/create">
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">  
+          <Video className="h-8 w-8 text-primary mb-2" /> 
+          <span className="text-sm font-medium text-center">Start Video Session</span> 
+        </div>
+      </Link>
+      
+      <button 
+        onClick={() => setIsVoiceAssistantOpen(true)}
+        className="flex flex-col items-center justify-center p-4 rounded-lg border bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-colors h-32"
+      >
+        <Mic className="h-8 w-8 mb-2" />
+        <span className="text-sm font-medium text-center">Ask AI</span>
+      </button>
+      
+      <Link href="/teacher/documents">
+        <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
+          <BookOpen className="h-8 w-8 text-primary mb-2" />
+          <span className="text-sm font-medium text-center">View Learning Materials</span>
+        </div>
+      </Link>
+    </div>
+  </CardContent>
+</Card>
       
       {/* AI Assistant floating button */}
       <button

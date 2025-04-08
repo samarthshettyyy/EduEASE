@@ -35,7 +35,11 @@ import {
   Upload,
   AlertCircle,
   LogOut,
-  Loader
+  Loader,
+  Eye,
+  Download,
+  CheckCircle,
+  Clock
 } from "lucide-react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, useGLTF, Environment } from "@react-three/drei"
@@ -104,6 +108,179 @@ function EmotionDetector({ onEmotionDetected }) {
               {currentEmotion === "overwhelmed" && (
                 <p className="text-xs text-muted-foreground mt-1">Content simplified to reduce cognitive load</p>
               )}
+          </div>
+                
+          {/* Sidebar - 1/3 width on desktop */}
+          <div className="space-y-6">
+            <EmotionDetector onEmotionDetected={handleEmotionDetected} />
+            <VoiceNavigation onVoiceCommand={handleVoiceCommand}/>
+            <SignLanguageConverter />
+            
+            {/* Telegram Bot Integration Component */}
+            <Card className="mb-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Telegram Bot</CardTitle>
+                <CardDescription>Get updates and homework reminders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="rounded-full bg-primary/10 p-2">
+                    <Bot className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">AdaptLearn Bot</p>
+                    <p className="text-xs text-muted-foreground">Connect to receive notifications</p>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" size="sm" className="w-full">
+                  Connect to Telegram
+                </Button>
+              </CardFooter>
+            </Card>
+
+            {/* Chat Room (conditionally rendered) */}
+            {showChat && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Class Chat</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => setShowChat(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-60 overflow-y-auto border rounded-md p-2 mb-2">
+                    <div className="space-y-2">
+                      <div className="bg-muted p-2 rounded-md">
+                        <p className="text-xs font-medium">Teacher</p>
+                        <p className="text-sm">Remember to complete the worksheet by Friday!</p>
+                      </div>
+                      <div className="bg-primary/10 p-2 rounded-md">
+                        <p className="text-xs font-medium">Alex</p>
+                        <p className="text-sm">Can we review the cell membrane again?</p>
+                      </div>
+                      <div className="bg-muted p-2 rounded-md">
+                        <p className="text-xs font-medium">Teacher</p>
+                        <p className="text-sm">Sure, let's go over it in tomorrow's class.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Type your message..."
+                      className="flex-1"
+                    />
+                    <Button size="sm">
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Video Call (conditionally rendered) */}
+            {showVideo && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">1-on-1 Video Call</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => setShowVideo(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="aspect-video bg-muted rounded-lg flex items-center justify-center mb-2">
+                    <Video className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <div className="flex justify-center gap-2">
+                    <Button variant="outline" size="sm">
+                      <Mic className="h-4 w-4 mr-1" />
+                      Mute
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Video className="h-4 w-4 mr-1" />
+                      Camera
+                    </Button>
+                    <Button variant="destructive" size="sm">
+                      End Call
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Completion Modal */}
+      {showCompletionModal && selectedDocForCompletion && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-lg font-bold mb-2">Mark "{selectedDocForCompletion.name}" as Completed</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Share your understanding of this material to help your teacher improve future content.
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">How well did you understand this material?</label>
+              <select 
+                className="w-full p-2 border rounded-md"
+                value={comprehensionLevel}
+                onChange={(e) => setComprehensionLevel(e.target.value)}
+              >
+                <option value="excellent">Excellent - I understood everything</option>
+                <option value="good">Good - I understood most of it</option>
+                <option value="fair">Fair - I understood some parts</option>
+                <option value="poor">Poor - I had difficulty understanding</option>
+              </select>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Feedback (optional)</label>
+              <textarea
+                className="w-full p-2 border rounded-md"
+                rows={3}
+                placeholder="Share your thoughts about this document..."
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+              ></textarea>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 border rounded-md"
+                onClick={() => {
+                  setShowCompletionModal(false);
+                  setSelectedDocForCompletion(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-primary text-white rounded-md"
+                onClick={submitDocumentCompletion}
+              >
+                Mark as Completed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="bg-white border-t border-gray-200 py-4 mt-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <p className="text-center text-sm text-gray-500">
+            Dyslexia-Friendly Learning Platform • Created to help students with reading difficulties
+          </p>
+        </div>
+      </footer>
+    </div>
+  )}
               {currentEmotion === "confused" && (
                 <p className="text-xs text-muted-foreground mt-1">Additional explanations provided</p>
               )}
@@ -258,6 +435,119 @@ function VoiceNavigation({ onVoiceCommand }: { onVoiceCommand: (command: string)
   );
 }
 
+// Document List Component
+function DocumentList({ documents, isLoading, userRole, onSelectDocument, onMarkAsCompleted }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Classroom Documents</CardTitle>
+        <CardDescription>
+          {userRole === "teacher" 
+            ? "Documents you've shared with students" 
+            : "Learning materials shared by your teacher"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : documents.length > 0 ? (
+          <div className="space-y-4">
+            {documents.map((doc) => (
+              <div 
+                key={doc.id} 
+                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer"
+              >
+                <div 
+                  className="flex items-center gap-3 flex-1"
+                  onClick={() => onSelectDocument(doc.id)}
+                >
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">{doc.name}</p>
+                    <p className="text-xs text-muted-foreground">Uploaded by {doc.uploadedBy} on {doc.uploadDate}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {userRole === "student" && (
+                    <>
+                      {doc.completed ? (
+                        <div className="px-2 py-1 bg-green-50 text-green-600 text-xs rounded-full flex items-center">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Completed
+                        </div>
+                      ) : doc.viewed ? (
+                        <div className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full flex items-center">
+                          <Eye className="h-3 w-3 mr-1" />
+                          Viewed
+                        </div>
+                      ) : (
+                        <div className="px-2 py-1 bg-amber-50 text-amber-600 text-xs rounded-full flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          New
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="flex">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => onSelectDocument(doc.id)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+
+                    {userRole === "student" && !doc.completed && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkAsCompleted(doc.id);
+                        }}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Complete
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+            <p className="text-muted-foreground">No documents available yet</p>
+            {userRole === "teacher" && (
+              <div className="mt-4">
+                <div className="relative inline-block">
+                  <input
+                    type="file"
+                    id="file-upload-empty"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    accept=".pdf,.txt,.docx"
+                    onChange={(e) => handleFileUpload(e)}
+                  />
+                  <Button>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Your First Document
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // Main Classroom Page Component
 export default function ClassroomPage() {
   const params = useParams()
@@ -275,6 +565,12 @@ export default function ClassroomPage() {
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true)
   const [classroomDocuments, setClassroomDocuments] = useState([])
   const [selectedDocument, setSelectedDocument] = useState(null)
+  
+  // States for document completion modal
+  const [showCompletionModal, setShowCompletionModal] = useState(false)
+  const [selectedDocForCompletion, setSelectedDocForCompletion] = useState(null)
+  const [comprehensionLevel, setComprehensionLevel] = useState("good")
+  const [feedback, setFeedback] = useState("")
 
   // Fetch user role and classroom documents on component mount
   useEffect(() => {
@@ -301,7 +597,17 @@ export default function ClassroomPage() {
         const data = await response.json();
         
         if (response.ok) {
-          setClassroomDocuments(data.documents || []);
+          const formattedDocs = data.documents.map(doc => ({
+            id: doc.id,
+            name: doc.title,
+            uploadedBy: doc.teacherName || "Teacher",
+            uploadDate: new Date(doc.createdAt).toISOString().split('T')[0],
+            viewed: doc.viewed,
+            completed: doc.completed,
+            fileUrl: doc.fileUrl
+          }));
+          
+          setClassroomDocuments(formattedDocs);
         }
       } catch (error) {
         console.error('Error fetching classroom documents:', error);
@@ -321,8 +627,8 @@ export default function ClassroomPage() {
       
       setIsLoadingDocuments(false);
       setClassroomDocuments([
-        { id: 1, name: "Cell Structure Introduction.pdf", uploadedBy: "Ms. Johnson", uploadDate: "2025-04-02" },
-        { id: 2, name: "Biology Chapter 3 Notes.docx", uploadedBy: "Mr. Smith", uploadDate: "2025-04-05" }
+        { id: 1, name: "Cell Structure Introduction.pdf", uploadedBy: "Ms. Johnson", uploadDate: "2025-04-02", viewed: false, completed: false },
+        { id: 2, name: "Biology Chapter 3 Notes.docx", uploadedBy: "Mr. Smith", uploadDate: "2025-04-05", viewed: true, completed: false }
       ]);
     }, 1000);
   }, [classroomId]);
@@ -399,67 +705,52 @@ export default function ClassroomPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('classroomId', classroomId as string);
+      formData.append('title', file.name);
 
-      // Make API call to process the file
-      const response = await fetch('/api/tts/process', {
+      // Make API call to upload the document
+      const response = await fetch('/api/documents/upload', {
         method: 'POST',
         body: formData,
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Error processing file');
+        throw new Error(errorData.error || 'Error uploading document');
       }
       
       const data = await response.json();
       
-      // Log the response data for debugging
-      console.log("File processing response:", data);
-      
-      // Check if data contains actual content
-      if (!data.text || data.text.trim().length === 0) {
-        console.error("File processed but no text content was extracted");
-        setIsLoading(false);
-        setProcessingError("The document was processed but no text could be extracted.");
-        return;
-      }
-      
       // Store the document data
       setDocumentData({
-        sessionId: data.session_id,
+        sessionId: data.id,
         filename: file.name,
-        text: data.text,
-        sentences: data.sentences || [data.text],
-        importantWords: data.important_words || [],
-        extractionStats: data.extraction_stats
+        text: "Document uploaded successfully. Content will be available for viewing.",
+        sentences: ["Document uploaded successfully. Content will be available for viewing."],
+        importantWords: [],
+        extractionStats: {
+          extraction_method: "upload",
+          character_count: 0,
+          word_count: 0,
+          is_empty: false
+        }
       });
       
-      // For teacher role, also add to classroom documents
-      if (userRole === "teacher") {
-        // This would be an API call to save the document to the classroom
-        await fetch(`/api/classrooms/${classroomId}/documents`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: file.name,
-            sessionId: data.session_id,
-          }),
-        });
-        
-        // Refresh the classroom documents list
-        // For demo, we'll just add it locally
-        setClassroomDocuments([
-          ...classroomDocuments,
-          { 
-            id: Date.now(), // temporary ID
-            name: file.name, 
-            uploadedBy: "You", 
-            uploadDate: new Date().toISOString().split('T')[0] 
-          }
-        ]);
-      }
+      // Add the new document to the classroom documents list
+      const newDocument = {
+        id: data.id,
+        name: file.name,
+        uploadedBy: "You",
+        uploadDate: new Date().toISOString().split('T')[0],
+        fileUrl: data.fileUrl,
+        fileType: data.fileType,
+        viewed: false,
+        completed: false
+      };
+      
+      setClassroomDocuments([
+        newDocument,
+        ...classroomDocuments
+      ]);
       
       setIsLoading(false);
       setActiveTab("content");
@@ -480,6 +771,31 @@ export default function ClassroomPage() {
       const selectedDoc = classroomDocuments.find(doc => doc.id === documentId);
       setSelectedDocument(selectedDoc);
       
+      // Mark as viewed if user is a student
+      if (userRole === "student" && !selectedDoc.viewed) {
+        try {
+          await fetch('/api/documents/track-view', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              documentId, 
+              viewed: true 
+            })
+          });
+          
+          // Update local state
+          setClassroomDocuments(docs => 
+            docs.map(doc => 
+              doc.id === documentId 
+                ? { ...doc, viewed: true } 
+                : doc
+            )
+          );
+        } catch (error) {
+          console.error('Error marking document as viewed:', error);
+        }
+      }
+      
       // In a real implementation, you would fetch the document content from your API
       const response = await fetch(`/api/documents/${documentId}`);
       
@@ -491,12 +807,12 @@ export default function ClassroomPage() {
       
       // Store the document data
       setDocumentData({
-        sessionId: data.session_id || `doc-${documentId}`,
+        sessionId: data.sessionId || `doc-${documentId}`,
         filename: selectedDoc.name,
         text: data.text || "Sample document content for demonstration purposes.",
         sentences: data.sentences || ["Sample document content for demonstration purposes."],
-        importantWords: data.important_words || ["sample", "document", "content"],
-        extractionStats: data.extraction_stats || {
+        importantWords: data.importantWords || ["sample", "document", "content"],
+        extractionStats: data.extractionStats || {
           extraction_method: "demo",
           character_count: 45,
           word_count: 6,
@@ -527,6 +843,51 @@ export default function ClassroomPage() {
       });
       setIsLoading(false);
       setActiveTab("content");
+    }
+  };
+
+  // Handle marking a document as completed
+  const handleMarkAsCompleted = (documentId) => {
+    const document = classroomDocuments.find(doc => doc.id === documentId);
+    if (document) {
+      setSelectedDocForCompletion(document);
+      setShowCompletionModal(true);
+    }
+  };
+
+  // Handle submitting document completion
+  const submitDocumentCompletion = async () => {
+    if (!selectedDocForCompletion) return;
+    
+    try {
+      await fetch('/api/documents/track-view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          documentId: selectedDocForCompletion.id,
+          viewed: true,
+          completed: true,
+          feedback,
+          comprehension: comprehensionLevel
+        })
+      });
+      
+      // Update local state
+      setClassroomDocuments(docs => 
+        docs.map(doc => 
+          doc.id === selectedDocForCompletion.id 
+            ? { ...doc, viewed: true, completed: true } 
+            : doc
+        )
+      );
+      
+      // Reset and close modal
+      setShowCompletionModal(false);
+      setSelectedDocForCompletion(null);
+      setFeedback("");
+      setComprehensionLevel("good");
+    } catch (error) {
+      console.error('Error marking document as completed:', error);
     }
   };
 
@@ -643,64 +1004,15 @@ export default function ClassroomPage() {
               </Card>
             )}
 
-            {/* Classroom Documents Section */}
+            {/* Classroom Documents Section - Show documents when no specific document is loaded */}
             {!isLoading && !documentData && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Classroom Documents</CardTitle>
-                  <CardDescription>Select a document to read with TTS</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingDocuments ? (
-                    <div className="flex justify-center py-8">
-                      <Loader className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  ) : classroomDocuments.length > 0 ? (
-                    <div className="space-y-4">
-                      {classroomDocuments.map((doc) => (
-                        <div 
-                          key={doc.id} 
-                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer"
-                          onClick={() => loadDocument(doc.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <BookOpen className="h-5 w-5 text-primary" />
-                            <div>
-                              <p className="font-medium">{doc.name}</p>
-                              <p className="text-xs text-muted-foreground">Uploaded by {doc.uploadedBy} on {doc.uploadDate}</p>
-                            </div>
-                          </div>
-                          <Button variant="ghost" size="sm">
-                            Open
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">No documents available yet</p>
-                      {userRole === "teacher" && (
-                        <div className="mt-4">
-                          <div className="relative inline-block">
-                            <input
-                              type="file"
-                              id="file-upload-empty"
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              accept=".pdf,.txt,.docx"
-                              onChange={handleFileUpload}
-                            />
-                            <Button>
-                              <Upload className="h-4 w-4 mr-2" />
-                              Upload Your First Document
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <DocumentList
+                documents={classroomDocuments}
+                isLoading={isLoadingDocuments}
+                userRole={userRole}
+                onSelectDocument={loadDocument}
+                onMarkAsCompleted={handleMarkAsCompleted}
+              />
             )}
 
             {!isLoading && (documentData || activeTab !== "content") && (
@@ -927,122 +1239,3 @@ export default function ClassroomPage() {
                 </TabsContent>
               </Tabs>
             )}
-          </div>
-                
-          {/* Sidebar - 1/3 width on desktop */}
-          <div className="space-y-6">
-            <EmotionDetector onEmotionDetected={handleEmotionDetected} />
-            <VoiceNavigation onVoiceCommand={handleVoiceCommand}/>
-            <SignLanguageConverter />
-            
-            {/* Telegram Bot Integration Component */}
-            <Card className="mb-4">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Telegram Bot</CardTitle>
-                <CardDescription>Get updates and homework reminders</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full bg-primary/10 p-2">
-                    <Bot className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">AdaptLearn Bot</p>
-                    <p className="text-xs text-muted-foreground">Connect to receive notifications</p>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" size="sm" className="w-full">
-                  Connect to Telegram
-                </Button>
-              </CardFooter>
-            </Card>
-
-            {/* Chat Room (conditionally rendered) */}
-            {showChat && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Class Chat</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setShowChat(false)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-60 overflow-y-auto border rounded-md p-2 mb-2">
-                    <div className="space-y-2">
-                      <div className="bg-muted p-2 rounded-md">
-                        <p className="text-xs font-medium">Teacher</p>
-                        <p className="text-sm">Remember to complete the worksheet by Friday!</p>
-                      </div>
-                      <div className="bg-primary/10 p-2 rounded-md">
-                        <p className="text-xs font-medium">Alex</p>
-                        <p className="text-sm">Can we review the cell membrane again?</p>
-                      </div>
-                      <div className="bg-muted p-2 rounded-md">
-                        <p className="text-xs font-medium">Teacher</p>
-                        <p className="text-sm">Sure, let's go over it in tomorrow's class.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      placeholder="Type your message..."
-                      className="flex-1"
-                    />
-                    <Button size="sm">
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Video Call (conditionally rendered) */}
-            {showVideo && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">1-on-1 Video Call</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setShowVideo(false)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="aspect-video bg-muted rounded-lg flex items-center justify-center mb-2">
-                    <Video className="h-10 w-10 text-muted-foreground" />
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    <Button variant="outline" size="sm">
-                      <Mic className="h-4 w-4 mr-1" />
-                      Mute
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Video className="h-4 w-4 mr-1" />
-                      Camera
-                    </Button>
-                    <Button variant="destructive" size="sm">
-                      End Call
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      </main>
-
-      <footer className="bg-white border-t border-gray-200 py-4 mt-8">
-        <div className="max-w-6xl mx-auto px-4">
-          <p className="text-center text-sm text-gray-500">
-            Dyslexia-Friendly Learning Platform • Created to help students with reading difficulties
-          </p>
-        </div>
-      </footer>
-    </div>
-  )
-}
