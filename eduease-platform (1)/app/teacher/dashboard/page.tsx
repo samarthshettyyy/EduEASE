@@ -140,8 +140,8 @@ export default function TeacherDashboardPage() {
   ]
 
   return (
-    <div className="p-6 bg-gradient-to-br from-indigo-50/50 to-transparent min-h-screen">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, Ms. Johnson</p>
@@ -158,74 +158,73 @@ export default function TeacherDashboardPage() {
               <AvatarFallback>MJ</AvatarFallback>
             </Avatar>
           </div>
-          <Button
+          <button
             onClick={handleLogout}
-            variant="outline"
-            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+            className="flex items-center px-4 py-2 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
           >
             <LogOut className="h-4 w-4 mr-2" />
             Logout
-          </Button>
+          </button>
         </div>
       </div>
       
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card className="bg-blue-50/50 border-blue-100">
+        <Card className="bg-card border shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-blue-600 mb-1">Total Students</p>
+                <p className="text-sm font-medium text-primary mb-1">Total Students</p>
                 <h3 className="text-2xl font-bold">56</h3>
                 <p className="text-xs text-muted-foreground mt-1">Across 3 classrooms</p>
               </div>
-              <div className="bg-blue-100 p-3 rounded-full">
-                <Users className="h-6 w-6 text-blue-600" />
+              <div className="bg-primary/10 p-3 rounded-full">
+                <Users className="h-6 w-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-green-50/50 border-green-100">
+        <Card className="bg-card border shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-green-600 mb-1">Upcoming Sessions</p>
+                <p className="text-sm font-medium text-primary mb-1">Upcoming Sessions</p>
                 <h3 className="text-2xl font-bold">8</h3>
                 <p className="text-xs text-muted-foreground mt-1">This week</p>
               </div>
-              <div className="bg-green-100 p-3 rounded-full">
-                <Calendar className="h-6 w-6 text-green-600" />
+              <div className="bg-primary/10 p-3 rounded-full">
+                <Calendar className="h-6 w-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-purple-50/50 border-purple-100">
+        <Card className="bg-card border shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-purple-600 mb-1">Learning Resources</p>
+                <p className="text-sm font-medium text-primary mb-1">Learning Resources</p>
                 <h3 className="text-2xl font-bold">24</h3>
                 <p className="text-xs text-muted-foreground mt-1">Active documents</p>
               </div>
-              <div className="bg-purple-100 p-3 rounded-full">
-                <FileUp className="h-6 w-6 text-purple-600" />
+              <div className="bg-primary/10 p-3 rounded-full">
+                <FileUp className="h-6 w-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-amber-50/50 border-amber-100">
+        <Card className="bg-card border shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-amber-600 mb-1">Student Alerts</p>
+                <p className="text-sm font-medium text-primary mb-1">Student Alerts</p>
                 <h3 className="text-2xl font-bold">3</h3>
                 <p className="text-xs text-muted-foreground mt-1">Requiring attention</p>
               </div>
-              <div className="bg-amber-100 p-3 rounded-full">
-                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              <div className="bg-primary/10 p-3 rounded-full">
+                <AlertTriangle className="h-6 w-6 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -235,7 +234,7 @@ export default function TeacherDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         {/* Classrooms Section */}
         <div className="md:col-span-2">
-          <Card className="shadow-sm">
+          <Card className="border bg-card text-card-foreground shadow">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-xl flex items-center">
@@ -257,7 +256,7 @@ export default function TeacherDashboardPage() {
                   <Link href={`/teacher/classrooms/${classroom.id}`} key={classroom.id}>
                     <div className="border rounded-lg p-4 hover:border-primary hover:shadow-sm transition-all cursor-pointer">
                       <div className="flex justify-between items-start mb-2">
-                        <Badge className={classroom.color}>{classroom.subject}</Badge>
+                        <Badge variant="outline">{classroom.subject}</Badge>
                         <div className="flex items-center text-muted-foreground text-sm">
                           <Users className="h-4 w-4 mr-1" />
                           {classroom.students}
@@ -292,10 +291,10 @@ export default function TeacherDashboardPage() {
 
         {/* Student Alerts */}
         <div className="md:col-span-1">
-          <Card className="shadow-sm">
+          <Card className="border bg-card text-card-foreground shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-xl flex items-center">
-                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500" />
+                <AlertTriangle className="h-5 w-5 mr-2 text-primary" />
                 Student Alerts
               </CardTitle>
               <CardDescription>Recent notifications requiring attention</CardDescription>
@@ -303,11 +302,7 @@ export default function TeacherDashboardPage() {
             <CardContent>
               <div className="space-y-3">
                 {studentAlerts.map(alert => (
-                  <div key={alert.id} className={`border-l-4 ${
-                    alert.priority === 'high' ? 'border-red-500 bg-red-50/50' : 
-                    alert.priority === 'medium' ? 'border-amber-500 bg-amber-50/50' : 
-                    'border-green-500 bg-green-50/50'
-                  } p-3 rounded-r-lg`}>
+                  <div key={alert.id} className="border-l-4 border-primary p-3 rounded-lg bg-primary/5">
                     <div className="flex justify-between items-start">
                       <h4 className="font-medium text-sm">{alert.student}</h4>
                       <Badge variant="outline" className="text-xs font-normal">
@@ -339,7 +334,7 @@ export default function TeacherDashboardPage() {
       </div>
 
       {/* Upcoming Meetings */}
-      <Card className="mb-6 shadow-sm">
+      <Card className="mb-6 border bg-card text-card-foreground shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-xl flex items-center">
             <Calendar className="h-5 w-5 mr-2 text-primary" />
@@ -352,7 +347,7 @@ export default function TeacherDashboardPage() {
             {upcomingMeetings.map(meeting => (
               <div 
                 key={meeting.id} 
-                className={`border rounded-lg overflow-hidden ${meeting.urgent ? 'border-l-4 border-l-red-500' : ''}`}
+                className="border rounded-lg overflow-hidden"
               >
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
@@ -387,9 +382,9 @@ export default function TeacherDashboardPage() {
                     </span>
                   </div>
                 </div>
-                <div className="bg-muted/50 p-3 border-t">
+                <div className="bg-muted/20 p-3 border-t">
                   <Button 
-                    className={`w-full ${meeting.time.includes('Today') ? 'bg-primary' : 'bg-muted/70 text-muted-foreground hover:bg-muted'}`}
+                    className="w-full"
                     variant={meeting.time.includes('Today') ? 'default' : 'outline'}
                     size="sm"
                   >
@@ -419,7 +414,7 @@ export default function TeacherDashboardPage() {
       </Card>
       
       {/* Student Progress */}
-      <Card className="mb-6 shadow-sm">
+      <Card className="mb-6 border bg-card text-card-foreground shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-xl flex items-center">
             <BarChart className="h-5 w-5 mr-2 text-primary" />
@@ -440,21 +435,27 @@ export default function TeacherDashboardPage() {
                     <span>Number Operations</span>
                     <span>82%</span>
                   </div>
-                  <Progress value={82} className="h-2" />
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '82%' }}></div>
+                  </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Fractions & Decimals</span>
                     <span>65%</span>
                   </div>
-                  <Progress value={65} className="h-2" />
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '65%' }}></div>
+                  </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Geometry</span>
                     <span>88%</span>
                   </div>
-                  <Progress value={88} className="h-2" />
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '88%' }}></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -470,21 +471,27 @@ export default function TeacherDashboardPage() {
                     <span>Reading Fluency</span>
                     <span>75%</span>
                   </div>
-                  <Progress value={75} className="h-2" />
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '75%' }}></div>
+                  </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Vocabulary</span>
                     <span>68%</span>
                   </div>
-                  <Progress value={68} className="h-2" />
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '68%' }}></div>
+                  </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Text Analysis</span>
                     <span>74%</span>
                   </div>
-                  <Progress value={74} className="h-2" />
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '74%' }}></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -507,7 +514,7 @@ export default function TeacherDashboardPage() {
       </Card>
       
       {/* Quick Actions */}
-      <Card className="shadow-sm">
+      <Card className="border bg-card text-card-foreground shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-xl">Quick Actions</CardTitle>
           <CardDescription>Common tasks and shortcuts</CardDescription>
@@ -515,28 +522,29 @@ export default function TeacherDashboardPage() {
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Link href="/teacher/documents/upload">
-              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary/50 transition-colors h-32">
+              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
                 <FileUp className="h-8 w-8 text-primary mb-2" />
                 <span className="text-sm font-medium text-center">Upload Learning Materials</span>
               </div>
             </Link>
             
             <Link href="/teacher/meetings/create">
-              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary/50 transition-colors h-32">  
+              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">  
                 <Video className="h-8 w-8 text-primary mb-2" /> 
                 <span className="text-sm font-medium text-center">Start Video Session</span> 
               </div>
             </Link>
             
-            <Link href="/teacher/students">
-              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary/50 transition-colors h-32">
-                <Users className="h-8 w-8 text-primary mb-2" />
-                <span className="text-sm font-medium text-center">Manage Students</span>
-              </div>
-            </Link>
+            <button 
+              onClick={() => setIsVoiceAssistantOpen(true)}
+              className="flex flex-col items-center justify-center p-4 rounded-lg border bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-colors h-32"
+            >
+              <Mic className="h-8 w-8 mb-2" />
+              <span className="text-sm font-medium text-center">Ask AI</span>
+            </button>
             
             <Link href="/teacher/analytics">
-              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary/50 transition-colors h-32">
+              <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
                 <BarChart className="h-8 w-8 text-primary mb-2" />
                 <span className="text-sm font-medium text-center">View Analytics</span>
               </div>
