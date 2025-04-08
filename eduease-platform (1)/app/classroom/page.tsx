@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   BookOpen,
@@ -29,9 +30,16 @@ import {
   Hand,
   Bot,
   ArrowLeft,
+  Plus,
+  X,
+  Upload,
 } from "lucide-react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, useGLTF, Environment } from "@react-three/drei"
+
+// Import the DocumentViewer component
+// In a real implementation, you would create this component as described in the integration guide
+import DocumentViewer from "@/components/DocumentViewer"
 
 // 3D Model Component
 function Model(props) {
@@ -170,44 +178,395 @@ function VoiceNavigation() {
   )
 }
 
-// Telegram Bot Integration Component
-function TelegramBotIntegration() {
+// TTS Reader Component - Adapted from your Flask app
+function TextToSpeechReader({ content, contentLevel }) {
+  const [voices, setVoices] = useState([])
+  const [selectedVoice, setSelectedVoice] = useState("")
+  const [rate, setRate] = useState([1.0])
+  const [pitch, setPitch] = useState([1.0])
+  const [volume, setVolume] = useState([1.0])
+  const [isReading, setIsReading] = useState(false)
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
+  const [currentWordIndex, setCurrentWordIndex] = useState(-1)
+  const [importantWords, setImportantWords] = useState([])
+  const [newWordInput, setNewWordInput] = useState("")
+  const synth = useRef(null)
+  const utterance = useRef(null)
+  // In your ClassroomPage component
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [documentData, setDocumentData] = useState<{
+  sessionId: string;
+  filename: string;
+  text: string;
+  sentences: string[];
+  importantWords: string[];
+  extractionStats?: {
+    extraction_method: string;
+    character_count: number;
+    word_count: number;
+    is_empty: boolean;
+  };
+} | null>(null);
+  
+  // Process content into sentences
+  const sentences = content ? content.split(/(?<=[.!?])\s+/) : []
+  
+  // Initialize speech synthesis
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      synth.current = window.speechSynthesis
+      
+      const loadVoices = () => {
+        const availableVoices = synth.current.getVoices()
+        setVoices(availableVoices)
+        
+        if (availableVoices.length > 0) {
+          setSelectedVoice(availableVoices[0].name)
+        }
+      }
+      
+      // Some browsers load voices asynchronously
+      if (synth.current.onvoiceschanged !== undefined) {
+        synth.current.onvoiceschanged = loadVoices
+      }
+      
+      loadVoices()
+      
+      // Find important words based on frequency
+      const findImportantWords = () => {
+        if (!content) return
+        
+        const words = content.toLowerCase().match(/\b\w+\b/g) || []
+        const wordFreq = {}
+        const stopwords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about'])
+        
+        for (const word of words) {
+          if (word.length > 3 && !stopwords.has(word)) {
+            wordFreq[word] = (wordFreq[word] || 0) + 1
+          }
+        }
+        
+        const sortedWords = Object.entries(wordFreq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([word]) => word)
+        
+        setImportantWords(sortedWords)
+      }
+      
+      findImportantWords()
+    }
+    
+    return () => {
+      if (synth.current) {
+        synth.current.cancel()
+      }
+    }
+  }, [content])
+  
+  // Check if a word is marked as important
+  const isImportantWord = (word) => {
+    const cleanWord = word.replace(/[.,!?;:'"()\[\]{}]/g, '').toLowerCase()
+    return importantWords.some(important => cleanWord === important.toLowerCase())
+  }
+  
+  // Speak the current sentence
+  const speakCurrentSentence = () => {
+    if (!synth.current || !sentences[currentSentenceIndex]) return
+    
+    if (synth.current.speaking) {
+      synth.current.cancel()
+    }
+    
+    const currentText = sentences[currentSentenceIndex]
+    utterance.current = new SpeechSynthesisUtterance(currentText)
+    
+    // Set voice
+    const voice = voices.find(v => v.name === selectedVoice)
+    if (voice) {
+      utterance.current.voice = voice
+    }
+    
+    // Set speech parameters
+    utterance.current.rate = rate[0]
+    utterance.current.pitch = pitch[0]
+    utterance.current.volume = volume[0]
+    
+    // Word boundary event for highlighting
+    utterance.current.onboundary = (event) => {
+      if (event.name === 'word') {
+        // Calculate which word we're on based on character index
+        const words = currentText.split(' ')
+        
+        let charCount = 0
+        let wordIndex = 0
+        
+        for (let i = 0; i < words.length; i++) {
+          charCount += words[i].length
+          
+          if (event.charIndex <= charCount) {
+            wordIndex = i
+            break
+          }
+          
+          // Add 1 for the space after each word
+          charCount += 1
+        }
+        
+        setCurrentWordIndex(wordIndex)
+      }
+    }
+    
+    // When speech ends
+    utterance.current.onend = () => {
+      setIsReading(false)
+      setCurrentWordIndex(-1)
+      
+      // Automatically move to next sentence if available
+      if (currentSentenceIndex < sentences.length - 1 && isReading) {
+        setCurrentSentenceIndex(current => current + 1)
+        setTimeout(speakCurrentSentence, 500) // Small delay between sentences
+      } else {
+        setIsReading(false)
+      }
+    }
+    
+    // Speak the utterance
+    synth.current.speak(utterance.current)
+  }
+  
+  // Toggle play/pause
+  const togglePlayback = () => {
+    if (isReading) {
+      synth.current.cancel()
+      setIsReading(false)
+    } else {
+      setIsReading(true)
+      speakCurrentSentence()
+    }
+  }
+  
+  // Effects for changes in reading state
+  useEffect(() => {
+    if (isReading) {
+      speakCurrentSentence()
+    }
+  }, [isReading, currentSentenceIndex])
+  
+  // Go to previous sentence
+  const prevSentence = () => {
+    if (currentSentenceIndex > 0) {
+      synth.current.cancel()
+      setIsReading(false)
+      setCurrentSentenceIndex(current => current - 1)
+      setCurrentWordIndex(-1)
+    }
+  }
+  
+  // Go to next sentence
+  const nextSentence = () => {
+    if (currentSentenceIndex < sentences.length - 1) {
+      synth.current.cancel()
+      setIsReading(false)
+      setCurrentSentenceIndex(current => current + 1)
+      setCurrentWordIndex(-1)
+    }
+  }
+  
+  // Add a new important word
+  const addImportantWord = () => {
+    const word = newWordInput.trim()
+    
+    if (word && !importantWords.includes(word.toLowerCase())) {
+      setImportantWords(current => [...current, word.toLowerCase()])
+      setNewWordInput("")
+    }
+  }
+  
+  // Remove an important word
+  const removeImportantWord = (word) => {
+    setImportantWords(current => current.filter(w => w !== word))
+  }
+  
   return (
-    <Card className="mb-4">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Telegram Bot</CardTitle>
-        <CardDescription>Get updates and homework reminders</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-4">
-          <div className="rounded-full bg-primary/10 p-2">
-            <Bot className="h-4 w-4 text-primary" />
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle>Text-to-Speech Reader</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={togglePlayback}>
+                {isReading ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
+                {isReading ? "Pause" : "Read Aloud"}
+              </Button>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-medium">AdaptLearn Bot</p>
-            <p className="text-xs text-muted-foreground">Connect to receive notifications</p>
+          <CardDescription>Customize your reading experience</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Voice Type</label>
+              <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {voices.map((voice) => (
+                    <SelectItem key={voice.name} value={voice.name}>
+                      {voice.name} ({voice.lang})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Reading Speed</label>
+              <div className="flex items-center gap-4">
+                <RotateCcw className="h-4 w-4 text-muted-foreground" />
+                <Slider value={rate} onValueChange={setRate} min={0.5} max={2} step={0.1} />
+                <Volume2 className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Current: {rate[0]}x</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Pitch</label>
+              <Slider value={pitch} onValueChange={setPitch} min={0.5} max={1.5} step={0.1} />
+              <p className="text-xs text-muted-foreground mt-1">Current: {pitch[0]}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Volume</label>
+              <div className="flex items-center gap-4">
+                <VolumeX className="h-4 w-4 text-muted-foreground" />
+                <Slider value={volume} onValueChange={setVolume} min={0} max={1} step={0.1} />
+                <Volume2 className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Current: {volume[0]}</p>
+            </div>
           </div>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Button variant="outline" size="sm" className="w-full">
-          Connect to Telegram
-        </Button>
-      </CardFooter>
-    </Card>
+          
+          {/* Text Navigation Controls */}
+          <div className="flex justify-center items-center space-x-4 my-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={prevSentence} 
+              disabled={currentSentenceIndex === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            
+            <div className="text-sm text-muted-foreground">
+              Sentence {currentSentenceIndex + 1} of {sentences.length}
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={nextSentence} 
+              disabled={currentSentenceIndex >= sentences.length - 1}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+          
+          {/* Text display with highlighting */}
+          <div className="rounded-lg p-4 bg-muted mt-2 max-h-[300px] overflow-y-auto">
+            {sentences.map((sentence, sentIndex) => {
+              // Split sentence into words for individual highlighting
+              const words = sentence.split(' ')
+              
+              return (
+                <div 
+                  key={sentIndex}
+                  className={`mb-2 ${sentIndex === currentSentenceIndex ? 'opacity-100' : 'opacity-60'}`}
+                >
+                  {words.map((word, wordIndex) => {
+                    const isImportant = isImportantWord(word)
+                    const isCurrent = sentIndex === currentSentenceIndex && wordIndex === currentWordIndex
+                    
+                    return (
+                      <span 
+                        key={`${sentIndex}-${wordIndex}`}
+                        className={`
+                          ${isImportant ? 'font-bold text-purple-700 underline' : ''}
+                          ${isCurrent ? 'bg-yellow-100 px-1 rounded' : ''}
+                          ${contentLevel === "simplified" && isImportant ? 'bg-yellow-100 px-1' : ''}
+                        `}
+                      >
+                        {word}{wordIndex < words.length - 1 ? ' ' : ''}
+                      </span>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Important Words Component */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center">
+            <CardTitle className="text-lg">Important Words</CardTitle>
+          </div>
+          <CardDescription>Words that will be highlighted during reading</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex mb-4">
+            <Input
+              value={newWordInput}
+              onChange={(e) => setNewWordInput(e.target.value)}
+              placeholder="Add word to highlight"
+              onKeyPress={(e) => e.key === 'Enter' && addImportantWord()}
+              className="flex-grow"
+            />
+            <Button onClick={addImportantWord} className="ml-2">
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            {importantWords.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No important words added yet</p>
+            ) : (
+              importantWords.map((word) => (
+                <div 
+                  key={word} 
+                  className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center"
+                >
+                  {word}
+                  <button 
+                    onClick={() => removeImportantWord(word)} 
+                    className="ml-1 text-purple-600 hover:text-purple-900"
+                    aria-label={`Remove ${word}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
+// Main Classroom Page Component
 export default function ClassroomPage() {
   const params = useParams()
   const classroomId = params.id
   const [activeTab, setActiveTab] = useState("content")
-  const [readingVoice, setReadingVoice] = useState("female")
-  const [readingSpeed, setReadingSpeed] = useState([1])
-  const [isReading, setIsReading] = useState(false)
   const [currentLanguage, setCurrentLanguage] = useState("english")
   const [showChat, setShowChat] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
+  const [documentData, setDocumentData] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   // Simulated content adaptation based on emotion
   const [contentLevel, setContentLevel] = useState("standard")
@@ -229,6 +588,78 @@ export default function ClassroomPage() {
     }
   }
 
+  // Function to handle file upload and processing
+ // File upload and document loading functions in your classroom page.tsx
+const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  // Check if file type is allowed
+  const fileType = file.name.split('.').pop()?.toLowerCase();
+  if (!['txt', 'pdf', 'docx'].includes(fileType || '')) {
+    alert('Invalid file type. Please upload PDF, TXT, or DOCX files.');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    // Create form data
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Make actual API call to process the file
+    const response = await fetch('/api/tts/process', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error processing file');
+    }
+    
+    const data = await response.json();
+    
+    // Log the actual response data for debugging
+    console.log("File processing response:", data);
+    
+    // Check if data contains actual content
+    if (!data.text || data.text.trim().length === 0 || !data.sentences || data.sentences.length === 0) {
+      console.error("File processed but no text content was extracted");
+      setIsLoading(false);
+      setProcessingError("The document was processed but no text could be extracted.");
+      return;
+    }
+    
+    // Store the actual document data
+    setDocumentData({
+      sessionId: data.session_id,
+      filename: file.name,
+      text: data.text,
+      sentences: data.sentences,
+      importantWords: data.important_words,
+      extractionStats: data.extraction_stats
+    });
+    
+    setIsLoading(false);
+    setActiveTab("content");
+  } catch (error) {
+    console.error('Error processing file:', error);
+    setProcessingError(error instanceof Error ? error.message : 'Unknown error processing file');
+    setIsLoading(false);
+  }
+};
+
+  // Sample content for the reader (used when no document is uploaded)
+  const sampleContent = `Cells are the basic structural and functional units of all living organisms. They are often called the "building blocks of life." The study of cells is called cell biology.
+
+  Each cell contains specialized structures called organelles that perform specific functions. The two main types of cells are prokaryotic and eukaryotic cells.
+
+  The cell membrane is a thin layer that surrounds the cell and separates its contents from the outside environment. It's made of a phospholipid bilayer with embedded proteins.
+
+  The membrane is selectively permeable, meaning it allows some substances to pass through while blocking others. This property is essential for maintaining the cell's internal environment.`
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b bg-background">
@@ -245,6 +676,31 @@ export default function ClassroomPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* File Upload Button */}
+            <div className="relative">
+              <input
+                type="file"
+                id="file-upload"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                accept=".pdf,.txt,.docx"
+                onChange={handleFileUpload}
+                disabled={isLoading}
+              />
+              <Button variant="outline" size="sm" className="flex items-center gap-1" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <span className="animate-spin mr-1">⟳</span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-1" />
+                    Upload Document
+                  </>
+                )}
+              </Button>
+            </div>
+            
             <Select value={currentLanguage} onValueChange={setCurrentLanguage}>
               <SelectTrigger className="w-[130px]">
                 <Globe className="mr-2 h-4 w-4" />
@@ -285,329 +741,298 @@ export default function ClassroomPage() {
                 </Button>
               </div>
             </div>
-
+            
             {encouragementMessage && (
               <div className="bg-primary/10 text-primary rounded-lg p-3 text-sm">{encouragementMessage}</div>
             )}
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="content">Content</TabsTrigger>
-                <TabsTrigger value="interactive">Interactive</TabsTrigger>
-                <TabsTrigger value="3d-models">3D Models</TabsTrigger>
-                <TabsTrigger value="quiz">Quiz</TabsTrigger>
-              </TabsList>
+            {isLoading && (
+              <Card className="p-8">
+                <div className="flex flex-col items-center justify-center h-64">
+                  <div className="animate-spin text-3xl mb-4">⟳</div>
+                  <p className="text-muted-foreground">Processing your document...</p>
+                </div>
+              </Card>
+            )}
 
-              <TabsContent value="content" className="space-y-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Text-to-Speech Reader</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setIsReading(!isReading)}>
-                          {isReading ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-                          {isReading ? "Pause" : "Read Aloud"}
-                        </Button>
-                      </div>
-                    </div>
-                    <CardDescription>Customize your reading experience</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Voice Type</label>
-                        <Select value={readingVoice} onValueChange={setReadingVoice}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">Male Voice</SelectItem>
-                            <SelectItem value="female">Female Voice</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Reading Speed</label>
-                        <div className="flex items-center gap-4">
-                          <RotateCcw className="h-4 w-4 text-muted-foreground" />
-                          <Slider value={readingSpeed} onValueChange={setReadingSpeed} min={0.5} max={2} step={0.1} />
-                          <Volume2 className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">Current: {readingSpeed[0]}x</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            {!isLoading && !documentData && (
+              /* File Upload Card (appears when no content is loaded) */
+              <Card className="border-dashed border-2 border-gray-300">
+                <CardContent className="flex flex-col items-center justify-center py-10">
+                  <div className="mb-4 text-muted-foreground">
+                    <BookOpen className="h-12 w-12" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">Upload a Document</h3>
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    Upload a document to use the dyslexia-friendly TTS reader. Supported formats: PDF, TXT, or DOCX.
+                  </p>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="file-upload-main"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      accept=".pdf,.txt,.docx"
+                      onChange={handleFileUpload}
+                    />
+                    <Button>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Browse Files
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Maximum file size: 16MB
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col gap-6">
-                      <div className="flex gap-4">
-                        <div className="w-1/3">
+            {!isLoading && (documentData || activeTab !== "content") && (
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="content">Content</TabsTrigger>
+                  <TabsTrigger value="interactive">Interactive</TabsTrigger>
+                  <TabsTrigger value="3d-models">3D Models</TabsTrigger>
+                  <TabsTrigger value="quiz">Quiz</TabsTrigger>
+                </TabsList>
+
+                {/* In the classroom page content section */}
+<TabsContent value="content" className="space-y-4">
+  {isLoading ? (
+    <Card className="p-8">
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="animate-spin text-3xl mb-4">⟳</div>
+        <p className="text-muted-foreground">Processing your document...</p>
+      </div>
+    </Card>
+  ) : documentData ? (
+    // When document data is available, show the DocumentViewer
+    <DocumentViewer 
+      sessionId={documentData.sessionId}
+      filename={documentData.filename}
+      text={documentData.text}
+      sentences={documentData.sentences}
+      initialImportantWords={documentData.importantWords}
+      extractionStats={documentData.extractionStats}
+    />
+  ) : processingError ? (
+    // Show error message if processing failed
+    <Card>
+      <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-medium mb-2">Error Processing Document</h3>
+        <p className="text-sm text-muted-foreground mb-4">{processingError}</p>
+        <Button variant="outline" onClick={() => setProcessingError(null)}>
+          Try Again
+        </Button>
+      </CardContent>
+    </Card>
+  ) : (
+    // Default upload card (same as before)
+    <Card className="border-dashed border-2 border-gray-300">
+      <CardContent className="flex flex-col items-center justify-center py-10">
+        <div className="mb-4 text-muted-foreground">
+          <BookOpen className="h-12 w-12" />
+        </div>
+        <h3 className="text-lg font-medium mb-2">Upload a Document</h3>
+        <p className="text-sm text-muted-foreground text-center mb-4">
+          Upload a document to use the dyslexia-friendly TTS reader. Supported formats: PDF, TXT, or DOCX.
+        </p>
+        <div className="relative">
+          <input
+            type="file"
+            id="file-upload-main"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            accept=".pdf,.txt,.docx"
+            onChange={handleFileUpload}
+          />
+          <Button>
+            <Upload className="h-4 w-4 mr-2" />
+            Browse Files
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Maximum file size: 16MB
+        </p>
+      </CardContent>
+    </Card>
+  )}
+</TabsContent>
+
+                <TabsContent value="interactive" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Interactive Cell Explorer</CardTitle>
+                      <CardDescription>Click on different parts of the cell to learn more</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="aspect-video bg-muted rounded-lg relative">
+                        <div className="absolute inset-0 flex items-center justify-center">
                           <img
-                            src="/placeholder.svg?height=200&width=300"
-                            alt="Cell structure diagram"
-                            className="rounded-lg w-full h-auto object-cover"
+                            src="/placeholder.svg?height=400&width=600"
+                            alt="Interactive cell diagram"
+                            className="max-w-full max-h-full"
                           />
+                          {/* Interactive hotspots would be placed here */}
+                          <div className="absolute top-1/4 left-1/2 h-4 w-4 bg-primary rounded-full animate-pulse" />
+                          <div className="absolute top-1/2 left-1/3 h-4 w-4 bg-primary rounded-full animate-pulse" />
+                          <div className="absolute bottom-1/3 right-1/4 h-4 w-4 bg-primary rounded-full animate-pulse" />
                         </div>
-                        <div className="w-2/3">
-                          <h3 className="text-lg font-medium mb-2">Introduction to Cells</h3>
-                          <p className="text-sm mb-2">
-                            Cells are the basic structural and functional units of all living organisms. They are often
-                            called the "building blocks of life." The study of cells is called{" "}
-                            <span className={contentLevel === "simplified" ? "bg-yellow-100 px-1" : "font-medium"}>
-                              cell biology
-                            </span>
-                            .
-                          </p>
-                          <p className="text-sm">
-                            Each cell contains specialized structures called{" "}
-                            <span className={contentLevel === "simplified" ? "bg-yellow-100 px-1" : "font-medium"}>
-                              organelles
-                            </span>{" "}
-                            that perform specific functions. The two main types of cells are{" "}
-                            <span className={contentLevel === "simplified" ? "bg-yellow-100 px-1" : "font-medium"}>
-                              prokaryotic
-                            </span>{" "}
-                            and{" "}
-                            <span className={contentLevel === "simplified" ? "bg-yellow-100 px-1" : "font-medium"}>
-                              eukaryotic
-                            </span>{" "}
-                            cells.
-                          </p>
+                      </div>
+                      <div className="mt-4 p-4 bg-muted rounded-lg">
+                        <p className="text-sm">Click on a highlighted area to learn more about that cell component.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                          {contentLevel === "detailed" && (
-                            <div className="mt-2 p-2 bg-blue-50 rounded-md">
-                              <p className="text-xs text-blue-700">
-                                <strong>Additional explanation:</strong> Prokaryotic cells are simpler and lack a
-                                nucleus, while eukaryotic cells have a nucleus and more complex organelles. Your body is
-                                made up of eukaryotic cells!
-                              </p>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Multisensory Learning Activity</CardTitle>
+                      <CardDescription>Engage with content through multiple senses</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-primary/10 rounded-lg p-4 flex flex-col items-center">
+                          <Volume2 className="h-8 w-8 text-primary mb-2" />
+                          <h4 className="font-medium text-sm mb-1">Audio</h4>
+                          <p className="text-xs text-center text-muted-foreground">Listen to cell processes</p>
+                          <Button variant="ghost" size="sm" className="mt-2">
+                            <Play className="h-3 w-3 mr-1" /> Play
+                          </Button>
+                        </div>
+
+                        <div className="bg-primary/10 rounded-lg p-4 flex flex-col items-center">
+                          <ImageIcon className="h-8 w-8 text-primary mb-2" />
+                          <h4 className="font-medium text-sm mb-1">Visual</h4>
+                          <p className="text-xs text-center text-muted-foreground">Watch cell animations</p>
+                          <Button variant="ghost" size="sm" className="mt-2">
+                            <Play className="h-3 w-3 mr-1" /> View
+                          </Button>
+                        </div>
+
+                        <div className="bg-primary/10 rounded-lg p-4 flex flex-col items-center">
+                          <Cube className="h-8 w-8 text-primary mb-2" />
+                          <h4 className="font-medium text-sm mb-1">Tactile</h4>
+                          <p className="text-xs text-center text-muted-foreground">Interactive cell building</p>
+                          <Button variant="ghost" size="sm" className="mt-2">
+                            <Play className="h-3 w-3 mr-1" /> Start
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="3d-models" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>3D Cell Model</CardTitle>
+                      <CardDescription>Interact with a 3D model of a cell</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                        <Canvas>
+                          <ambientLight intensity={0.5} />
+                          <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
+                          <Model position={[0, -1, 0]} rotation={[0, Math.PI / 4, 0]} />
+                          <OrbitControls />
+                          <Environment preset="studio" />
+                        </Canvas>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <Button variant="outline" size="sm">
+                          View Nucleus
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          View Mitochondria
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          View Cell Membrane
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          View Golgi Apparatus
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="quiz" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Chapter Quiz</CardTitle>
+                      <CardDescription>Test your knowledge of cell structure</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <h3 className="font-medium">Question 1</h3>
+                          <p className="text-sm">What is the main function of the cell membrane?</p>
+                          <div className="space-y-2 mt-2">
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q1a" name="q1" className="h-4 w-4" />
+                              <label htmlFor="q1a" className="text-sm">
+                                Energy production
+                              </label>
                             </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-4">
-                        <div className="w-2/3">
-                          <h3 className="text-lg font-medium mb-2">Cell Membrane</h3>
-                          <p className="text-sm mb-2">
-                            The{" "}
-                            <span className={contentLevel === "simplified" ? "bg-yellow-100 px-1" : "font-medium"}>
-                              cell membrane
-                            </span>{" "}
-                            is a thin layer that surrounds the cell and separates its contents from the outside
-                            environment. It's made of a{" "}
-                            <span className={contentLevel === "simplified" ? "bg-yellow-100 px-1" : "font-medium"}>
-                              phospholipid bilayer
-                            </span>{" "}
-                            with embedded proteins.
-                          </p>
-                          <p className="text-sm">
-                            The membrane is{" "}
-                            <span className={contentLevel === "simplified" ? "bg-yellow-100 px-1" : "font-medium"}>
-                              selectively permeable
-                            </span>
-                            , meaning it allows some substances to pass through while blocking others. This property is
-                            essential for maintaining the cell's internal environment.
-                          </p>
-
-                          {contentLevel === "simplified" && (
-                            <div className="mt-2 p-2 bg-green-50 rounded-md">
-                              <p className="text-xs text-green-700">
-                                <strong>Simplified:</strong> Think of the cell membrane like the walls of your house. It
-                                protects what's inside and controls what goes in and out.
-                              </p>
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q1b" name="q1" className="h-4 w-4" />
+                              <label htmlFor="q1b" className="text-sm">
+                                Protein synthesis
+                              </label>
                             </div>
-                          )}
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q1c" name="q1" className="h-4 w-4" />
+                              <label htmlFor="q1c" className="text-sm">
+                                Control what enters and exits the cell
+                              </label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q1d" name="q1" className="h-4 w-4" />
+                              <label htmlFor="q1d" className="text-sm">
+                                DNA storage
+                              </label>
+                            </div>
+                          </div>
                         </div>
-                        <div className="w-1/3">
-                          <img
-                            src="/placeholder.svg?height=200&width=300"
-                            alt="Cell membrane structure"
-                            className="rounded-lg w-full h-auto object-cover"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
 
-              <TabsContent value="interactive" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Interactive Cell Explorer</CardTitle>
-                    <CardDescription>Click on different parts of the cell to learn more</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="aspect-video bg-muted rounded-lg relative">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <img
-                          src="/placeholder.svg?height=400&width=600"
-                          alt="Interactive cell diagram"
-                          className="max-w-full max-h-full"
-                        />
-                        {/* Interactive hotspots would be placed here */}
-                        <div className="absolute top-1/4 left-1/2 h-4 w-4 bg-primary rounded-full animate-pulse" />
-                        <div className="absolute top-1/2 left-1/3 h-4 w-4 bg-primary rounded-full animate-pulse" />
-                        <div className="absolute bottom-1/3 right-1/4 h-4 w-4 bg-primary rounded-full animate-pulse" />
-                      </div>
-                    </div>
-                    <div className="mt-4 p-4 bg-muted rounded-lg">
-                      <p className="text-sm">Click on a highlighted area to learn more about that cell component.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Multisensory Learning Activity</CardTitle>
-                    <CardDescription>Engage with content through multiple senses</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-primary/10 rounded-lg p-4 flex flex-col items-center">
-                        <Volume2 className="h-8 w-8 text-primary mb-2" />
-                        <h4 className="font-medium text-sm mb-1">Audio</h4>
-                        <p className="text-xs text-center text-muted-foreground">Listen to cell processes</p>
-                        <Button variant="ghost" size="sm" className="mt-2">
-                          <Play className="h-3 w-3 mr-1" /> Play
-                        </Button>
-                      </div>
-
-                      <div className="bg-primary/10 rounded-lg p-4 flex flex-col items-center">
-                        <ImageIcon className="h-8 w-8 text-primary mb-2" />
-                        <h4 className="font-medium text-sm mb-1">Visual</h4>
-                        <p className="text-xs text-center text-muted-foreground">Watch cell animations</p>
-                        <Button variant="ghost" size="sm" className="mt-2">
-                          <Play className="h-3 w-3 mr-1" /> View
-                        </Button>
-                      </div>
-
-                      <div className="bg-primary/10 rounded-lg p-4 flex flex-col items-center">
-                        <Cube className="h-8 w-8 text-primary mb-2" />
-                        <h4 className="font-medium text-sm mb-1">Tactile</h4>
-                        <p className="text-xs text-center text-muted-foreground">Interactive cell building</p>
-                        <Button variant="ghost" size="sm" className="mt-2">
-                          <Play className="h-3 w-3 mr-1" /> Start
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="3d-models" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>3D Cell Model</CardTitle>
-                    <CardDescription>Interact with a 3D model of a cell</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                      <Canvas>
-                        <ambientLight intensity={0.5} />
-                        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-                        <Model position={[0, -1, 0]} rotation={[0, Math.PI / 4, 0]} />
-                        <OrbitControls />
-                        <Environment preset="studio" />
-                      </Canvas>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm">
-                        View Nucleus
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        View Mitochondria
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        View Cell Membrane
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        View Golgi Apparatus
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="quiz" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Chapter Quiz</CardTitle>
-                    <CardDescription>Test your knowledge of cell structure</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <h3 className="font-medium">Question 1</h3>
-                        <p className="text-sm">What is the main function of the cell membrane?</p>
-                        <div className="space-y-2 mt-2">
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q1a" name="q1" className="h-4 w-4" />
-                            <label htmlFor="q1a" className="text-sm">
-                              Energy production
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q1b" name="q1" className="h-4 w-4" />
-                            <label htmlFor="q1b" className="text-sm">
-                              Protein synthesis
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q1c" name="q1" className="h-4 w-4" />
-                            <label htmlFor="q1c" className="text-sm">
-                              Control what enters and exits the cell
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q1d" name="q1" className="h-4 w-4" />
-                            <label htmlFor="q1d" className="text-sm">
-                              DNA storage
-                            </label>
+                        <div className="space-y-2">
+                          <h3 className="font-medium">Question 2</h3>
+                          <p className="text-sm">Which organelle is known as the "powerhouse of the cell"?</p>
+                          <div className="space-y-2 mt-2">
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q2a" name="q2" className="h-4 w-4" />
+                              <label htmlFor="q2a" className="text-sm">
+                                Nucleus
+                              </label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q2b" name="q2" className="h-4 w-4" />
+                              <label htmlFor="q2b" className="text-sm">
+                                Mitochondria
+                              </label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q2c" name="q2" className="h-4 w-4" />
+                              <label htmlFor="q2c" className="text-sm">
+                                Ribosome
+                              </label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input type="radio" id="q2d" name="q2" className="h-4 w-4" />
+                              <label htmlFor="q2d" className="text-sm">
+                                Golgi apparatus
+                              </label>
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <h3 className="font-medium">Question 2</h3>
-                        <p className="text-sm">Which organelle is known as the "powerhouse of the cell"?</p>
-                        <div className="space-y-2 mt-2">
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q2a" name="q2" className="h-4 w-4" />
-                            <label htmlFor="q2a" className="text-sm">
-                              Nucleus
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q2b" name="q2" className="h-4 w-4" />
-                            <label htmlFor="q2b" className="text-sm">
-                              Mitochondria
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q2c" name="q2" className="h-4 w-4" />
-                            <label htmlFor="q2c" className="text-sm">
-                              Ribosome
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input type="radio" id="q2d" name="q2" className="h-4 w-4" />
-                            <label htmlFor="q2d" className="text-sm">
-                              Golgi apparatus
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button className="mt-6 w-full">Submit Answers</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                      <Button className="mt-6 w-full">Submit Answers</Button>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            )}
           </div>
 
           {/* Sidebar - 1/3 width on desktop */}
@@ -615,7 +1040,30 @@ export default function ClassroomPage() {
             <EmotionDetector onEmotionDetected={handleEmotionDetected} />
             <VoiceNavigation />
             <SignLanguageConverter />
-            <TelegramBotIntegration />
+            
+            {/* Telegram Bot Integration Component */}
+            <Card className="mb-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Telegram Bot</CardTitle>
+                <CardDescription>Get updates and homework reminders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="rounded-full bg-primary/10 p-2">
+                    <Bot className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">AdaptLearn Bot</p>
+                    <p className="text-xs text-muted-foreground">Connect to receive notifications</p>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" size="sm" className="w-full">
+                  Connect to Telegram
+                </Button>
+              </CardFooter>
+            </Card>
 
             {/* Chat Room (conditionally rendered) */}
             {showChat && (
@@ -624,7 +1072,7 @@ export default function ClassroomPage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Class Chat</CardTitle>
                     <Button variant="ghost" size="sm" onClick={() => setShowChat(false)}>
-                      <VolumeX className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardHeader>
@@ -646,10 +1094,10 @@ export default function ClassroomPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <input
+                    <Input
                       type="text"
                       placeholder="Type your message..."
-                      className="flex-1 px-3 py-2 text-sm border rounded-md"
+                      className="flex-1"
                     />
                     <Button size="sm">
                       <Send className="h-4 w-4" />
@@ -666,7 +1114,7 @@ export default function ClassroomPage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">1-on-1 Video Call</CardTitle>
                     <Button variant="ghost" size="sm" onClick={() => setShowVideo(false)}>
-                      <VolumeX className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardHeader>
@@ -693,7 +1141,14 @@ export default function ClassroomPage() {
           </div>
         </div>
       </main>
+
+      <footer className="bg-white border-t border-gray-200 py-4 mt-8">
+        <div className="max-w-6xl mx-auto px-4">
+          <p className="text-center text-sm text-gray-500">
+            Dyslexia-Friendly Learning Platform • Created to help students with reading difficulties
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }
-
