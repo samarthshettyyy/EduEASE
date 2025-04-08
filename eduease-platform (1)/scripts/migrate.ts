@@ -13,7 +13,7 @@ async function main() {
     host: process.env.DATABASE_HOST || "localhost",
     port: Number(process.env.DATABASE_PORT) || 3306,
     user: process.env.DATABASE_USER || "root",
-    password: process.env.DATABASE_PASSWORD || "",
+    password: process.env.DATABASE_PASSWORD || "Sa@310704",
     database: process.env.DATABASE_NAME || "eduease_db",
     multipleStatements: true,
   })

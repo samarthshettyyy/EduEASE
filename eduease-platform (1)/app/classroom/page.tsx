@@ -34,7 +34,8 @@ import {
   X,
   Upload,
   AlertCircle,
-  LogOut
+  LogOut,
+  Loader
 } from "lucide-react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, useGLTF, Environment } from "@react-three/drei"
@@ -257,7 +258,6 @@ function VoiceNavigation({ onVoiceCommand }: { onVoiceCommand: (command: string)
   );
 }
 
-
 // Main Classroom Page Component
 export default function ClassroomPage() {
   const params = useParams()
@@ -270,7 +270,62 @@ export default function ClassroomPage() {
   const [documentData, setDocumentData] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [processingError, setProcessingError] = useState(null)
-  const [isReading, setIsReading] = useState(false);
+  const [isReading, setIsReading] = useState(false)
+  const [userRole, setUserRole] = useState("student") // Default to student
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(true)
+  const [classroomDocuments, setClassroomDocuments] = useState([])
+  const [selectedDocument, setSelectedDocument] = useState(null)
+
+  // Fetch user role and classroom documents on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // This would be an API call to get the user's role from your auth system
+        const response = await fetch('/api/auth/me');
+        const data = await response.json();
+        
+        if (response.ok) {
+          setUserRole(data.role);
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        // For demo, we could default to student role if there's an error
+      }
+    };
+
+    const fetchClassroomDocuments = async () => {
+      setIsLoadingDocuments(true);
+      try {
+        // This would be an API call to get documents for this classroom
+        const response = await fetch(`/api/classrooms/${classroomId}/documents`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          setClassroomDocuments(data.documents || []);
+        }
+      } catch (error) {
+        console.error('Error fetching classroom documents:', error);
+      } finally {
+        setIsLoadingDocuments(false);
+      }
+    };
+
+    fetchUserData();
+    fetchClassroomDocuments();
+    
+    // For demonstration, simulating API responses
+    setTimeout(() => {
+      // Uncomment one of these to test different roles
+      // setUserRole("teacher"); // To test teacher view
+      // setUserRole("student"); // To test student view
+      
+      setIsLoadingDocuments(false);
+      setClassroomDocuments([
+        { id: 1, name: "Cell Structure Introduction.pdf", uploadedBy: "Ms. Johnson", uploadDate: "2025-04-02" },
+        { id: 2, name: "Biology Chapter 3 Notes.docx", uploadedBy: "Mr. Smith", uploadDate: "2025-04-05" }
+      ]);
+    }, 1000);
+  }, [classroomId]);
 
   const handleVoiceCommand = (cmd: string) => {
     if (cmd.includes("read aloud")) {
@@ -343,6 +398,7 @@ export default function ClassroomPage() {
       // Create form data
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('classroomId', classroomId as string);
 
       // Make API call to process the file
       const response = await fetch('/api/tts/process', {
@@ -378,12 +434,99 @@ export default function ClassroomPage() {
         extractionStats: data.extraction_stats
       });
       
+      // For teacher role, also add to classroom documents
+      if (userRole === "teacher") {
+        // This would be an API call to save the document to the classroom
+        await fetch(`/api/classrooms/${classroomId}/documents`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: file.name,
+            sessionId: data.session_id,
+          }),
+        });
+        
+        // Refresh the classroom documents list
+        // For demo, we'll just add it locally
+        setClassroomDocuments([
+          ...classroomDocuments,
+          { 
+            id: Date.now(), // temporary ID
+            name: file.name, 
+            uploadedBy: "You", 
+            uploadDate: new Date().toISOString().split('T')[0] 
+          }
+        ]);
+      }
+      
       setIsLoading(false);
       setActiveTab("content");
     } catch (error) {
       console.error('Error processing file:', error);
       setProcessingError(error instanceof Error ? error.message : 'Unknown error processing file');
       setIsLoading(false);
+    }
+  };
+
+  // Load a document from the classroom document list
+  const loadDocument = async (documentId) => {
+    setIsLoading(true);
+    setProcessingError(null);
+    
+    try {
+      // Find the document in the classroom documents
+      const selectedDoc = classroomDocuments.find(doc => doc.id === documentId);
+      setSelectedDocument(selectedDoc);
+      
+      // In a real implementation, you would fetch the document content from your API
+      const response = await fetch(`/api/documents/${documentId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load document');
+      }
+      
+      const data = await response.json();
+      
+      // Store the document data
+      setDocumentData({
+        sessionId: data.session_id || `doc-${documentId}`,
+        filename: selectedDoc.name,
+        text: data.text || "Sample document content for demonstration purposes.",
+        sentences: data.sentences || ["Sample document content for demonstration purposes."],
+        importantWords: data.important_words || ["sample", "document", "content"],
+        extractionStats: data.extraction_stats || {
+          extraction_method: "demo",
+          character_count: 45,
+          word_count: 6,
+          is_empty: false
+        }
+      });
+      
+      setIsLoading(false);
+      setActiveTab("content");
+    } catch (error) {
+      console.error('Error loading document:', error);
+      // For demonstration, create mock document data
+      setDocumentData({
+        sessionId: `doc-${documentId}`,
+        filename: classroomDocuments.find(doc => doc.id === documentId)?.name || "Document",
+        text: "This is sample content for the selected document. In a real implementation, this would be fetched from your API.",
+        sentences: [
+          "This is sample content for the selected document.",
+          "In a real implementation, this would be fetched from your API."
+        ],
+        importantWords: ["sample", "content", "document", "implementation", "API"],
+        extractionStats: {
+          extraction_method: "demo",
+          character_count: 114,
+          word_count: 21,
+          is_empty: false
+        }
+      });
+      setIsLoading(false);
+      setActiveTab("content");
     }
   };
 
@@ -412,30 +555,32 @@ export default function ClassroomPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* File Upload Button */}
-            <div className="relative">
-              <input
-                type="file"
-                id="file-upload"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                accept=".pdf,.txt,.docx"
-                onChange={handleFileUpload}
-                disabled={isLoading}
-              />
-              <Button variant="outline" size="sm" className="flex items-center gap-1" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <span className="animate-spin mr-1">⟳</span>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-1" />
-                    Upload Document
-                  </>
-                )}
-              </Button>
-            </div>
+            {/* Only show file upload button for teachers */}
+            {userRole === "teacher" && (
+              <div className="relative">
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  accept=".pdf,.txt,.docx"
+                  onChange={handleFileUpload}
+                  disabled={isLoading}
+                />
+                <Button variant="outline" size="sm" className="flex items-center gap-1" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader className="h-4 w-4 mr-1 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-1" />
+                      Upload Document
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
             
             <Select value={currentLanguage} onValueChange={setCurrentLanguage}>
               <SelectTrigger className="w-[130px]">
@@ -492,39 +637,68 @@ export default function ClassroomPage() {
             {isLoading && (
               <Card className="p-8">
                 <div className="flex flex-col items-center justify-center h-64">
-                  <div className="animate-spin text-3xl mb-4">⟳</div>
+                  <Loader className="h-10 w-10 animate-spin text-primary mb-4" />
                   <p className="text-muted-foreground">Processing your document...</p>
                 </div>
               </Card>
             )}
 
+            {/* Classroom Documents Section */}
             {!isLoading && !documentData && (
-              /* File Upload Card (appears when no content is loaded) */
-              <Card className="border-dashed border-2 border-gray-300">
-                <CardContent className="flex flex-col items-center justify-center py-10">
-                  <div className="mb-4 text-muted-foreground">
-                    <BookOpen className="h-12 w-12" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2">Upload a Document</h3>
-                  <p className="text-sm text-muted-foreground text-center mb-4">
-                    Upload a document to use the dyslexia-friendly TTS reader. Supported formats: PDF, TXT, or DOCX.
-                  </p>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      id="file-upload-main"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      accept=".pdf,.txt,.docx"
-                      onChange={handleFileUpload}
-                    />
-                    <Button>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Browse Files
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Maximum file size: 16MB
-                  </p>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Classroom Documents</CardTitle>
+                  <CardDescription>Select a document to read with TTS</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingDocuments ? (
+                    <div className="flex justify-center py-8">
+                      <Loader className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : classroomDocuments.length > 0 ? (
+                    <div className="space-y-4">
+                      {classroomDocuments.map((doc) => (
+                        <div 
+                          key={doc.id} 
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer"
+                          onClick={() => loadDocument(doc.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                            <div>
+                              <p className="font-medium">{doc.name}</p>
+                              <p className="text-xs text-muted-foreground">Uploaded by {doc.uploadedBy} on {doc.uploadDate}</p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            Open
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No documents available yet</p>
+                      {userRole === "teacher" && (
+                        <div className="mt-4">
+                          <div className="relative inline-block">
+                            <input
+                              type="file"
+                              id="file-upload-empty"
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              accept=".pdf,.txt,.docx"
+                              onChange={handleFileUpload}
+                            />
+                            <Button>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Your First Document
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -563,31 +737,15 @@ export default function ClassroomPage() {
                       isReadingProp={isReading}
                     />
                   ) : (
-                    // Default upload card (same as before)
+                    // This shouldn't be visible now that we have the classroom documents section
                     <Card className="border-dashed border-2 border-gray-300">
                       <CardContent className="flex flex-col items-center justify-center py-10">
                         <div className="mb-4 text-muted-foreground">
                           <BookOpen className="h-12 w-12" />
                         </div>
-                        <h3 className="text-lg font-medium mb-2">Upload a Document</h3>
+                        <h3 className="text-lg font-medium mb-2">No Document Selected</h3>
                         <p className="text-sm text-muted-foreground text-center mb-4">
-                          Upload a document to use the dyslexia-friendly TTS reader. Supported formats: PDF, TXT, or DOCX.
-                        </p>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            id="file-upload-main"
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            accept=".pdf,.txt,.docx"
-                            onChange={handleFileUpload}
-                          />
-                          <Button>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Browse Files
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Maximum file size: 16MB
+                          Please select a document from the classroom documents list.
                         </p>
                       </CardContent>
                     </Card>
@@ -599,31 +757,6 @@ export default function ClassroomPage() {
                     <CardHeader>
                       <CardTitle>Interactive Cell Explorer</CardTitle>
                       <CardDescription>Click on different parts of the cell to learn more</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="aspect-video bg-muted rounded-lg relative">
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <img
-                            src="/placeholder.svg?height=400&width=600"
-                            alt="Interactive cell diagram"
-                            className="max-w-full max-h-full"
-                          />
-                          {/* Interactive hotspots would be placed here */}
-                          <div className="absolute top-1/4 left-1/2 h-4 w-4 bg-primary rounded-full animate-pulse" />
-                          <div className="absolute top-1/2 left-1/3 h-4 w-4 bg-primary rounded-full animate-pulse" />
-                          <div className="absolute bottom-1/3 right-1/4 h-4 w-4 bg-primary rounded-full animate-pulse" />
-                        </div>
-                      </div>
-                      <div className="mt-4 p-4 bg-muted rounded-lg">
-                        <p className="text-sm">Click on a highlighted area to learn more about that cell component.</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Multisensory Learning Activity</CardTitle>
-                      <CardDescription>Engage with content through multiple senses</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -655,6 +788,31 @@ export default function ClassroomPage() {
                         </div>
                       </div>
                     </CardContent>
+                    <CardContent>
+                      <div className="aspect-video bg-muted rounded-lg relative">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <img
+                            src="/placeholder.svg?height=400&width=600"
+                            alt="Interactive cell diagram"
+                            className="max-w-full max-h-full"
+                          />
+                          {/* Interactive hotspots would be placed here */}
+                          <div className="absolute top-1/4 left-1/2 h-4 w-4 bg-primary rounded-full animate-pulse" />
+                          <div className="absolute top-1/2 left-1/3 h-4 w-4 bg-primary rounded-full animate-pulse" />
+                          <div className="absolute bottom-1/3 right-1/4 h-4 w-4 bg-primary rounded-full animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="mt-4 p-4 bg-muted rounded-lg">
+                        <p className="text-sm">Click on a highlighted area to learn more about that cell component.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Multisensory Learning Activity</CardTitle>
+                      <CardDescription>Engage with content through multiple senses</CardDescription>
+                    </CardHeader>
                   </Card>
                 </TabsContent>
 
@@ -770,7 +928,7 @@ export default function ClassroomPage() {
               </Tabs>
             )}
           </div>
-
+                
           {/* Sidebar - 1/3 width on desktop */}
           <div className="space-y-6">
             <EmotionDetector onEmotionDetected={handleEmotionDetected} />
