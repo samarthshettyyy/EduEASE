@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -33,18 +33,33 @@ import {
   Plus,
   X,
   Upload,
+  AlertCircle,
+  LogOut
 } from "lucide-react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, useGLTF, Environment } from "@react-three/drei"
 
 // Import the DocumentViewer component
-// In a real implementation, you would create this component as described in the integration guide
 import DocumentViewer from "@/components/DocumentViewer"
 
 // 3D Model Component
 function Model(props) {
-  const { scene } = useGLTF("/assets/3d/Hand.glb")
-  return <primitive object={scene} scale={2} {...props} />
+  // Use a placeholder or local model path
+  const modelPath = "/assets/3d/Hand.glb";
+  
+  try {
+    const { scene } = useGLTF(modelPath);
+    return <primitive object={scene} scale={2} {...props} />;
+  } catch (error) {
+    console.error("Error loading 3D model:", error);
+    // Return a simple fallback
+    return (
+      <mesh {...props}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="hotpink" />
+      </mesh>
+    );
+  }
 }
 
 // Emotion Detection Component
@@ -178,395 +193,18 @@ function VoiceNavigation() {
   )
 }
 
-// TTS Reader Component - Adapted from your Flask app
-function TextToSpeechReader({ content, contentLevel }) {
-  const [voices, setVoices] = useState([])
-  const [selectedVoice, setSelectedVoice] = useState("")
-  const [rate, setRate] = useState([1.0])
-  const [pitch, setPitch] = useState([1.0])
-  const [volume, setVolume] = useState([1.0])
-  const [isReading, setIsReading] = useState(false)
-  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
-  const [currentWordIndex, setCurrentWordIndex] = useState(-1)
-  const [importantWords, setImportantWords] = useState([])
-  const [newWordInput, setNewWordInput] = useState("")
-  const synth = useRef(null)
-  const utterance = useRef(null)
-  // In your ClassroomPage component
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [processingError, setProcessingError] = useState<string | null>(null);
-  const [documentData, setDocumentData] = useState<{
-  sessionId: string;
-  filename: string;
-  text: string;
-  sentences: string[];
-  importantWords: string[];
-  extractionStats?: {
-    extraction_method: string;
-    character_count: number;
-    word_count: number;
-    is_empty: boolean;
-  };
-} | null>(null);
-  
-  // Process content into sentences
-  const sentences = content ? content.split(/(?<=[.!?])\s+/) : []
-  
-  // Initialize speech synthesis
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      synth.current = window.speechSynthesis
-      
-      const loadVoices = () => {
-        const availableVoices = synth.current.getVoices()
-        setVoices(availableVoices)
-        
-        if (availableVoices.length > 0) {
-          setSelectedVoice(availableVoices[0].name)
-        }
-      }
-      
-      // Some browsers load voices asynchronously
-      if (synth.current.onvoiceschanged !== undefined) {
-        synth.current.onvoiceschanged = loadVoices
-      }
-      
-      loadVoices()
-      
-      // Find important words based on frequency
-      const findImportantWords = () => {
-        if (!content) return
-        
-        const words = content.toLowerCase().match(/\b\w+\b/g) || []
-        const wordFreq = {}
-        const stopwords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about'])
-        
-        for (const word of words) {
-          if (word.length > 3 && !stopwords.has(word)) {
-            wordFreq[word] = (wordFreq[word] || 0) + 1
-          }
-        }
-        
-        const sortedWords = Object.entries(wordFreq)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([word]) => word)
-        
-        setImportantWords(sortedWords)
-      }
-      
-      findImportantWords()
-    }
-    
-    return () => {
-      if (synth.current) {
-        synth.current.cancel()
-      }
-    }
-  }, [content])
-  
-  // Check if a word is marked as important
-  const isImportantWord = (word) => {
-    const cleanWord = word.replace(/[.,!?;:'"()\[\]{}]/g, '').toLowerCase()
-    return importantWords.some(important => cleanWord === important.toLowerCase())
-  }
-  
-  // Speak the current sentence
-  const speakCurrentSentence = () => {
-    if (!synth.current || !sentences[currentSentenceIndex]) return
-    
-    if (synth.current.speaking) {
-      synth.current.cancel()
-    }
-    
-    const currentText = sentences[currentSentenceIndex]
-    utterance.current = new SpeechSynthesisUtterance(currentText)
-    
-    // Set voice
-    const voice = voices.find(v => v.name === selectedVoice)
-    if (voice) {
-      utterance.current.voice = voice
-    }
-    
-    // Set speech parameters
-    utterance.current.rate = rate[0]
-    utterance.current.pitch = pitch[0]
-    utterance.current.volume = volume[0]
-    
-    // Word boundary event for highlighting
-    utterance.current.onboundary = (event) => {
-      if (event.name === 'word') {
-        // Calculate which word we're on based on character index
-        const words = currentText.split(' ')
-        
-        let charCount = 0
-        let wordIndex = 0
-        
-        for (let i = 0; i < words.length; i++) {
-          charCount += words[i].length
-          
-          if (event.charIndex <= charCount) {
-            wordIndex = i
-            break
-          }
-          
-          // Add 1 for the space after each word
-          charCount += 1
-        }
-        
-        setCurrentWordIndex(wordIndex)
-      }
-    }
-    
-    // When speech ends
-    utterance.current.onend = () => {
-      setIsReading(false)
-      setCurrentWordIndex(-1)
-      
-      // Automatically move to next sentence if available
-      if (currentSentenceIndex < sentences.length - 1 && isReading) {
-        setCurrentSentenceIndex(current => current + 1)
-        setTimeout(speakCurrentSentence, 500) // Small delay between sentences
-      } else {
-        setIsReading(false)
-      }
-    }
-    
-    // Speak the utterance
-    synth.current.speak(utterance.current)
-  }
-  
-  // Toggle play/pause
-  const togglePlayback = () => {
-    if (isReading) {
-      synth.current.cancel()
-      setIsReading(false)
-    } else {
-      setIsReading(true)
-      speakCurrentSentence()
-    }
-  }
-  
-  // Effects for changes in reading state
-  useEffect(() => {
-    if (isReading) {
-      speakCurrentSentence()
-    }
-  }, [isReading, currentSentenceIndex])
-  
-  // Go to previous sentence
-  const prevSentence = () => {
-    if (currentSentenceIndex > 0) {
-      synth.current.cancel()
-      setIsReading(false)
-      setCurrentSentenceIndex(current => current - 1)
-      setCurrentWordIndex(-1)
-    }
-  }
-  
-  // Go to next sentence
-  const nextSentence = () => {
-    if (currentSentenceIndex < sentences.length - 1) {
-      synth.current.cancel()
-      setIsReading(false)
-      setCurrentSentenceIndex(current => current + 1)
-      setCurrentWordIndex(-1)
-    }
-  }
-  
-  // Add a new important word
-  const addImportantWord = () => {
-    const word = newWordInput.trim()
-    
-    if (word && !importantWords.includes(word.toLowerCase())) {
-      setImportantWords(current => [...current, word.toLowerCase()])
-      setNewWordInput("")
-    }
-  }
-  
-  // Remove an important word
-  const removeImportantWord = (word) => {
-    setImportantWords(current => current.filter(w => w !== word))
-  }
-  
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle>Text-to-Speech Reader</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={togglePlayback}>
-                {isReading ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-                {isReading ? "Pause" : "Read Aloud"}
-              </Button>
-            </div>
-          </div>
-          <CardDescription>Customize your reading experience</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Voice Type</label>
-              <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {voices.map((voice) => (
-                    <SelectItem key={voice.name} value={voice.name}>
-                      {voice.name} ({voice.lang})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Reading Speed</label>
-              <div className="flex items-center gap-4">
-                <RotateCcw className="h-4 w-4 text-muted-foreground" />
-                <Slider value={rate} onValueChange={setRate} min={0.5} max={2} step={0.1} />
-                <Volume2 className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Current: {rate[0]}x</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Pitch</label>
-              <Slider value={pitch} onValueChange={setPitch} min={0.5} max={1.5} step={0.1} />
-              <p className="text-xs text-muted-foreground mt-1">Current: {pitch[0]}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Volume</label>
-              <div className="flex items-center gap-4">
-                <VolumeX className="h-4 w-4 text-muted-foreground" />
-                <Slider value={volume} onValueChange={setVolume} min={0} max={1} step={0.1} />
-                <Volume2 className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Current: {volume[0]}</p>
-            </div>
-          </div>
-          
-          {/* Text Navigation Controls */}
-          <div className="flex justify-center items-center space-x-4 my-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={prevSentence} 
-              disabled={currentSentenceIndex === 0}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            
-            <div className="text-sm text-muted-foreground">
-              Sentence {currentSentenceIndex + 1} of {sentences.length}
-            </div>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={nextSentence} 
-              disabled={currentSentenceIndex >= sentences.length - 1}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-          
-          {/* Text display with highlighting */}
-          <div className="rounded-lg p-4 bg-muted mt-2 max-h-[300px] overflow-y-auto">
-            {sentences.map((sentence, sentIndex) => {
-              // Split sentence into words for individual highlighting
-              const words = sentence.split(' ')
-              
-              return (
-                <div 
-                  key={sentIndex}
-                  className={`mb-2 ${sentIndex === currentSentenceIndex ? 'opacity-100' : 'opacity-60'}`}
-                >
-                  {words.map((word, wordIndex) => {
-                    const isImportant = isImportantWord(word)
-                    const isCurrent = sentIndex === currentSentenceIndex && wordIndex === currentWordIndex
-                    
-                    return (
-                      <span 
-                        key={`${sentIndex}-${wordIndex}`}
-                        className={`
-                          ${isImportant ? 'font-bold text-purple-700 underline' : ''}
-                          ${isCurrent ? 'bg-yellow-100 px-1 rounded' : ''}
-                          ${contentLevel === "simplified" && isImportant ? 'bg-yellow-100 px-1' : ''}
-                        `}
-                      >
-                        {word}{wordIndex < words.length - 1 ? ' ' : ''}
-                      </span>
-                    )
-                  })}
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Important Words Component */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center">
-            <CardTitle className="text-lg">Important Words</CardTitle>
-          </div>
-          <CardDescription>Words that will be highlighted during reading</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex mb-4">
-            <Input
-              value={newWordInput}
-              onChange={(e) => setNewWordInput(e.target.value)}
-              placeholder="Add word to highlight"
-              onKeyPress={(e) => e.key === 'Enter' && addImportantWord()}
-              className="flex-grow"
-            />
-            <Button onClick={addImportantWord} className="ml-2">
-              <Plus className="h-4 w-4 mr-1" /> Add
-            </Button>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {importantWords.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No important words added yet</p>
-            ) : (
-              importantWords.map((word) => (
-                <div 
-                  key={word} 
-                  className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center"
-                >
-                  {word}
-                  <button 
-                    onClick={() => removeImportantWord(word)} 
-                    className="ml-1 text-purple-600 hover:text-purple-900"
-                    aria-label={`Remove ${word}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
 // Main Classroom Page Component
 export default function ClassroomPage() {
   const params = useParams()
-  const classroomId = params.id
+  const router = useRouter()
+  const classroomId = params?.id
   const [activeTab, setActiveTab] = useState("content")
   const [currentLanguage, setCurrentLanguage] = useState("english")
   const [showChat, setShowChat] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
   const [documentData, setDocumentData] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [processingError, setProcessingError] = useState(null)
 
   // Simulated content adaptation based on emotion
   const [contentLevel, setContentLevel] = useState("standard")
@@ -588,68 +226,90 @@ export default function ClassroomPage() {
     }
   }
 
-  // Function to handle file upload and processing
- // File upload and document loading functions in your classroom page.tsx
-const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
+  // Function to handle logout
+  const handleLogout = async () => {
+    try {
+      // Call your logout API endpoint
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-  // Check if file type is allowed
-  const fileType = file.name.split('.').pop()?.toLowerCase();
-  if (!['txt', 'pdf', 'docx'].includes(fileType || '')) {
-    alert('Invalid file type. Please upload PDF, TXT, or DOCX files.');
-    return;
+      if (response.ok) {
+        // Redirect to login page after successful logout
+        router.push('/login')
+      } else {
+        console.error('Logout failed')
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
   }
 
-  setIsLoading(true);
+  // File upload and document loading function
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  try {
-    // Create form data
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // Make actual API call to process the file
-    const response = await fetch('/api/tts/process', {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error processing file');
-    }
-    
-    const data = await response.json();
-    
-    // Log the actual response data for debugging
-    console.log("File processing response:", data);
-    
-    // Check if data contains actual content
-    if (!data.text || data.text.trim().length === 0 || !data.sentences || data.sentences.length === 0) {
-      console.error("File processed but no text content was extracted");
-      setIsLoading(false);
-      setProcessingError("The document was processed but no text could be extracted.");
+    // Check if file type is allowed
+    const fileType = file.name.split('.').pop()?.toLowerCase();
+    if (!['txt', 'pdf', 'docx'].includes(fileType || '')) {
+      alert('Invalid file type. Please upload PDF, TXT, or DOCX files.');
       return;
     }
-    
-    // Store the actual document data
-    setDocumentData({
-      sessionId: data.session_id,
-      filename: file.name,
-      text: data.text,
-      sentences: data.sentences,
-      importantWords: data.important_words,
-      extractionStats: data.extraction_stats
-    });
-    
-    setIsLoading(false);
-    setActiveTab("content");
-  } catch (error) {
-    console.error('Error processing file:', error);
-    setProcessingError(error instanceof Error ? error.message : 'Unknown error processing file');
-    setIsLoading(false);
-  }
-};
+
+    setIsLoading(true);
+    setProcessingError(null);
+
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Make API call to process the file
+      const response = await fetch('/api/tts/process', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error processing file');
+      }
+      
+      const data = await response.json();
+      
+      // Log the response data for debugging
+      console.log("File processing response:", data);
+      
+      // Check if data contains actual content
+      if (!data.text || data.text.trim().length === 0) {
+        console.error("File processed but no text content was extracted");
+        setIsLoading(false);
+        setProcessingError("The document was processed but no text could be extracted.");
+        return;
+      }
+      
+      // Store the document data
+      setDocumentData({
+        sessionId: data.session_id,
+        filename: file.name,
+        text: data.text,
+        sentences: data.sentences || [data.text],
+        importantWords: data.important_words || [],
+        extractionStats: data.extraction_stats
+      });
+      
+      setIsLoading(false);
+      setActiveTab("content");
+    } catch (error) {
+      console.error('Error processing file:', error);
+      setProcessingError(error instanceof Error ? error.message : 'Unknown error processing file');
+      setIsLoading(false);
+    }
+  };
 
   // Sample content for the reader (used when no document is uploaded)
   const sampleContent = `Cells are the basic structural and functional units of all living organisms. They are often called the "building blocks of life." The study of cells is called cell biology.
@@ -719,6 +379,13 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
             </Button>
             <Button variant="outline" size="icon" onClick={() => setShowVideo(!showVideo)}>
               <Video className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={handleLogout}
+              className="flex items-center px-4 py-2 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
             </Button>
           </div>
         </div>
@@ -795,68 +462,60 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
                   <TabsTrigger value="quiz">Quiz</TabsTrigger>
                 </TabsList>
 
-                {/* In the classroom page content section */}
-<TabsContent value="content" className="space-y-4">
-  {isLoading ? (
-    <Card className="p-8">
-      <div className="flex flex-col items-center justify-center h-64">
-        <div className="animate-spin text-3xl mb-4">⟳</div>
-        <p className="text-muted-foreground">Processing your document...</p>
-      </div>
-    </Card>
-  ) : documentData ? (
-    // When document data is available, show the DocumentViewer
-    <DocumentViewer 
-      sessionId={documentData.sessionId}
-      filename={documentData.filename}
-      text={documentData.text}
-      sentences={documentData.sentences}
-      initialImportantWords={documentData.importantWords}
-      extractionStats={documentData.extractionStats}
-    />
-  ) : processingError ? (
-    // Show error message if processing failed
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h3 className="text-lg font-medium mb-2">Error Processing Document</h3>
-        <p className="text-sm text-muted-foreground mb-4">{processingError}</p>
-        <Button variant="outline" onClick={() => setProcessingError(null)}>
-          Try Again
-        </Button>
-      </CardContent>
-    </Card>
-  ) : (
-    // Default upload card (same as before)
-    <Card className="border-dashed border-2 border-gray-300">
-      <CardContent className="flex flex-col items-center justify-center py-10">
-        <div className="mb-4 text-muted-foreground">
-          <BookOpen className="h-12 w-12" />
-        </div>
-        <h3 className="text-lg font-medium mb-2">Upload a Document</h3>
-        <p className="text-sm text-muted-foreground text-center mb-4">
-          Upload a document to use the dyslexia-friendly TTS reader. Supported formats: PDF, TXT, or DOCX.
-        </p>
-        <div className="relative">
-          <input
-            type="file"
-            id="file-upload-main"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            accept=".pdf,.txt,.docx"
-            onChange={handleFileUpload}
-          />
-          <Button>
-            <Upload className="h-4 w-4 mr-2" />
-            Browse Files
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          Maximum file size: 16MB
-        </p>
-      </CardContent>
-    </Card>
-  )}
-</TabsContent>
+                <TabsContent value="content" className="space-y-4">
+                  {processingError ? (
+                    // Show error message if processing failed
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+                        <h3 className="text-lg font-medium mb-2">Error Processing Document</h3>
+                        <p className="text-sm text-muted-foreground mb-4">{processingError}</p>
+                        <Button variant="outline" onClick={() => setProcessingError(null)}>
+                          Try Again
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : documentData ? (
+                    // When document data is available, show the DocumentViewer
+                    <DocumentViewer 
+                      sessionId={documentData.sessionId}
+                      filename={documentData.filename}
+                      text={documentData.text}
+                      sentences={documentData.sentences}
+                      initialImportantWords={documentData.importantWords}
+                      extractionStats={documentData.extractionStats}
+                    />
+                  ) : (
+                    // Default upload card (same as before)
+                    <Card className="border-dashed border-2 border-gray-300">
+                      <CardContent className="flex flex-col items-center justify-center py-10">
+                        <div className="mb-4 text-muted-foreground">
+                          <BookOpen className="h-12 w-12" />
+                        </div>
+                        <h3 className="text-lg font-medium mb-2">Upload a Document</h3>
+                        <p className="text-sm text-muted-foreground text-center mb-4">
+                          Upload a document to use the dyslexia-friendly TTS reader. Supported formats: PDF, TXT, or DOCX.
+                        </p>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            id="file-upload-main"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            accept=".pdf,.txt,.docx"
+                            onChange={handleFileUpload}
+                          />
+                          <Button>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Browse Files
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Maximum file size: 16MB
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
 
                 <TabsContent value="interactive" className="space-y-4">
                   <Card>
