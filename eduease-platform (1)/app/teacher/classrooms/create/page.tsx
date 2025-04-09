@@ -1,3 +1,4 @@
+// app/teacher/classrooms/create/page.tsx
 "use client"
 
 import { useState } from "react"
@@ -14,7 +15,9 @@ import {
   Palette,
   Plus,
   User,
-  X
+  X,
+  Copy,
+  CheckCircle
 } from "lucide-react"
 import { 
   Card, 
@@ -39,18 +42,36 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from "@/components/ui/dialog"
 
-// Import context or state management (add this)
-import { useClassroomStore } from "@/lib/store/classroom-store"
+// Generate a random 6-character alphanumeric code
+const generateClassroomCode = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  
+  for (let i = 0; i < 6; i++) {
+    const randomIndex = Math.floor(Math.random() * chars.length);
+    code += chars[randomIndex];
+  }
+  
+  return code;
+};
 
 export default function CreateClassroomPage() {
   const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
+  const [selectedStudents, setSelectedStudents] = useState([])
   const [classroomColor, setClassroomColor] = useState("blue")
-  
-  // Add this - Access the global classroom store
-  const addClassroom = useClassroomStore((state) => state.addClassroom)
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [createdClassroom, setCreatedClassroom] = useState(null)
+  const [codeCopied, setCodeCopied] = useState(false)
   
   // Form state
   const [classroomName, setClassroomName] = useState("")
@@ -72,15 +93,30 @@ export default function CreateClassroomPage() {
     { id: "s8", name: "Sophia Chen", grade: "Grade 5", needs: "Autism" },
   ]
   
-  const toggleStudent = (studentId: string) => {
+  const toggleStudent = (studentId) => {
     if (selectedStudents.includes(studentId)) {
       setSelectedStudents(selectedStudents.filter(id => id !== studentId))
     } else {
       setSelectedStudents([...selectedStudents, studentId])
     }
   }
+
+  const copyCodeToClipboard = () => {
+    if (createdClassroom?.code) {
+      navigator.clipboard.writeText(createdClassroom.code);
+      setCodeCopied(true);
+      
+      toast({
+        title: "Code copied to clipboard",
+        description: "You can now share this code with your students",
+      });
+      
+      // Reset the copied state after a delay
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
   
-  const handleCreateClassroom = async (e: React.FormEvent) => {
+  const handleCreateClassroom = async (e) => {
     e.preventDefault()
     
     if (!classroomName.trim()) {
@@ -97,6 +133,9 @@ export default function CreateClassroomPage() {
     // Generate a unique ID for the new classroom
     const id = `c${Date.now()}`
     
+    // Generate a classroom code
+    const code = generateClassroomCode()
+    
     // Create the new classroom object
     const newClassroom = {
       id,
@@ -108,21 +147,34 @@ export default function CreateClassroomPage() {
       progress: 0,
       resources: 0,
       meetings: 0,
-      status: "active"
+      status: "active",
+      grade,
+      description,
+      code
     }
     
-    // Add new classroom to store
-    addClassroom(newClassroom)
-    
-    // Simulate API call and database update
-    setTimeout(() => {
-      setIsCreating(false)
+    try {
+      // Store newly created classroom data
+      setCreatedClassroom(newClassroom)
+      
+      // Save to session storage for the dashboard to display
+      sessionStorage.setItem('justCreatedClassroom', JSON.stringify(newClassroom))
+      
+      // Simulate API call (in a real app, you'd actually save to the backend)
+      setTimeout(() => {
+        setIsCreating(false)
+        setShowSuccessDialog(true)
+      }, 1500)
+      
+    } catch (error) {
+      console.error('Error creating classroom:', error)
       toast({
-        title: "Classroom created successfully",
-        description: "Your new classroom has been created and students have been notified.",
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create classroom. Please try again.",
       })
-      router.push("/teacher/classrooms")
-    }, 1500)
+      setIsCreating(false)
+    }
   }
   
   const colorOptions = [
@@ -137,6 +189,11 @@ export default function CreateClassroomPage() {
   const getCurrentColorClasses = () => {
     const color = colorOptions.find(c => c.id === classroomColor)
     return color ? `${color.bg} ${color.text} ${color.demo}` : "bg-blue-100 text-blue-800 border-blue-200"
+  }
+
+  const handleCloseDialog = () => {
+    setShowSuccessDialog(false)
+    router.push("/teacher/classrooms")
   }
 
   return (
@@ -446,8 +503,8 @@ export default function CreateClassroomPage() {
                 {selectedStudents.length > 0 ? (
                   <div className="h-[300px] overflow-y-auto border rounded-lg">
                     {selectedStudents.map(id => {
-                      const student = availableStudents.find(s => s.id === id)!
-                      return (
+                      const student = availableStudents.find(s => s.id === id)
+                      return student ? (
                         <div 
                           key={student.id}
                           className="flex items-center justify-between p-3 border-b last:border-b-0"
@@ -477,7 +534,7 @@ export default function CreateClassroomPage() {
                             </Button>
                           </div>
                         </div>
-                      )
+                      ) : null
                     })}
                   </div>
                 ) : (
@@ -511,6 +568,84 @@ export default function CreateClassroomPage() {
           </Button>
         </div>
       </form>
+      
+      {/* Success Dialog with Classroom Code */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Classroom Created Successfully
+            </DialogTitle>
+            <DialogDescription>
+              Share this code with your students so they can join the classroom
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center py-4">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold mb-1">{classroomName}</h2>
+              <p className="text-sm text-muted-foreground">
+                Subject: {subject} | Students: {selectedStudents.length}
+              </p>
+            </div>
+            
+            <div className="bg-muted p-6 rounded-lg w-full text-center mb-4">
+              <p className="text-sm text-muted-foreground mb-2">Classroom Join Code</p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-3xl font-bold tracking-wide">{createdClassroom?.code}</p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0"
+                  onClick={copyCodeToClipboard}
+                >
+                  {codeCopied ? (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-800 text-sm w-full">
+              <p className="flex items-start">
+                <InfoIcon className="h-5 w-5 mr-2 flex-shrink-0 text-blue-600" />
+                Students can join your classroom by entering this code on their dashboard
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button onClick={handleCloseDialog}>
+              Go to Classrooms
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+// Simple info icon for the dialog
+function InfoIcon(props) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
   )
 }

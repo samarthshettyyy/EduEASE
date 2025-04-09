@@ -1,6 +1,7 @@
+// app/teacher/dashboard/page.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { 
@@ -28,10 +29,55 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { VoiceAssistantWidget } from "@/components/voice-assistant-widget"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import ClassroomCodeBanner from "@/components/teacher-classroom-code-banner"
+import { useClassroomStore } from "@/lib/store/classroom-store"
+import { toast } from "@/components/ui/use-toast"
 
 export default function TeacherDashboardPage() {
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
   const router = useRouter()
+  
+  // Get classrooms from the store
+  const classrooms = useClassroomStore((state) => state.classrooms)
+  
+  // State for recently created classroom banner
+  const [recentClassroom, setRecentClassroom] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  
+  // Check if a classroom was just created by looking at session storage
+  useEffect(() => {
+    const justCreatedClassroom = sessionStorage.getItem('justCreatedClassroom')
+    
+    if (justCreatedClassroom) {
+      try {
+        const classroomData = JSON.parse(justCreatedClassroom)
+        setRecentClassroom(classroomData)
+        
+        // Clear from session storage so it doesn't show on refresh
+        sessionStorage.removeItem('justCreatedClassroom')
+      } catch (error) {
+        console.error('Error parsing classroom data:', error)
+      }
+    }
+    
+    // Fetch classrooms from API and update store if needed
+    const fetchClassrooms = async () => {
+      try {
+        const response = await fetch('/api/teacher/classrooms')
+        if (response.ok) {
+          const data = await response.json()
+          // You could update the store here if needed
+          // This would sync your frontend store with backend data
+        }
+      } catch (error) {
+        console.error('Error fetching classrooms:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchClassrooms()
+  }, [])
 
   // Function to handle logout
   const handleLogout = async () => {
@@ -49,95 +95,21 @@ export default function TeacherDashboardPage() {
         router.push('/login')
       } else {
         console.error('Logout failed')
+        toast({
+          variant: "destructive",
+          title: "Logout failed",
+          description: "Please try again"
+        })
       }
     } catch (error) {
       console.error('Logout error:', error)
+      toast({
+        variant: "destructive",
+        title: "Logout error",
+        description: "An unexpected error occurred"
+      })
     }
   }
-
-  // Sample data for classrooms
-  const classrooms = [
-    {
-      id: "c1",
-      name: "Grade 5 Mathematics",
-      subject: "Mathematics",
-      students: 18,
-      color: "bg-blue-100 text-blue-800 border-blue-200"
-    },
-    {
-      id: "c2",
-      name: "Reading & Comprehension",
-      subject: "English",
-      students: 22,
-      color: "bg-green-100 text-green-800 border-green-200"
-    },
-    {
-      id: "c3",
-      name: "Science Explorer",
-      subject: "Science",
-      students: 16,
-      color: "bg-purple-100 text-purple-800 border-purple-200"
-    }
-  ]
-
-  // Sample data for upcoming meetings
-  const upcomingMeetings = [
-    {
-      id: "m1",
-      title: "Math Support Session",
-      time: "Today, 3:30 PM",
-      duration: "30 min",
-      students: ["Alex M.", "Sarah K.", "Jason T."],
-      classroom: "Grade 5 Mathematics",
-      urgent: true
-    },
-    {
-      id: "m2",
-      title: "Reading Assessment",
-      time: "Tomorrow, 2:15 PM",
-      duration: "45 min",
-      students: ["Emma L.", "Michael R."],
-      classroom: "Reading & Comprehension",
-      urgent: false
-    },
-    {
-      id: "m3",
-      title: "Science Project Review",
-      time: "Apr 10, 1:00 PM",
-      duration: "40 min",
-      students: ["Oliver P.", "Sofia C.", "Noah W.", "Ava R."],
-      classroom: "Science Explorer",
-      urgent: false
-    }
-  ]
-
-  // Sample data for student alerts
-  const studentAlerts = [
-    {
-      id: "a1",
-      student: "Alex Miller",
-      alert: "Struggling with fractions",
-      priority: "high",
-      date: "Today",
-      subject: "Mathematics"
-    },
-    {
-      id: "a2",
-      student: "Emma Lewis",
-      alert: "Missing last 2 assignments",
-      priority: "medium",
-      date: "Yesterday",
-      subject: "Reading"
-    },
-    {
-      id: "a3",
-      student: "Noah Wilson",
-      alert: "Excellent progress in science project",
-      priority: "low",
-      date: "Apr 6",
-      subject: "Science"
-    }
-  ]
 
   return (
     <div className="p-6">
@@ -167,6 +139,14 @@ export default function TeacherDashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Recently created classroom banner */}
+      {recentClassroom && (
+        <ClassroomCodeBanner 
+          classroom={recentClassroom} 
+          onDismiss={() => setRecentClassroom(null)} 
+        />
+      )}
       
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -176,7 +156,7 @@ export default function TeacherDashboardPage() {
               <div>
                 <p className="text-sm font-medium text-primary mb-1">Total Students</p>
                 <h3 className="text-2xl font-bold">56</h3>
-                <p className="text-xs text-muted-foreground mt-1">Across 3 classrooms</p>
+                <p className="text-xs text-muted-foreground mt-1">Across {classrooms.length} classrooms</p>
               </div>
               <div className="bg-primary/10 p-3 rounded-full">
                 <Users className="h-6 w-6 text-primary" />
@@ -251,33 +231,63 @@ export default function TeacherDashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {classrooms.map(classroom => (
-                  <Link href={`/teacher/classrooms/${classroom.id}`} key={classroom.id}>
-                    <div className="border rounded-lg p-4 hover:border-primary hover:shadow-sm transition-all cursor-pointer">
-                      <div className="flex justify-between items-start mb-2">
-                        <Badge variant="outline">{classroom.subject}</Badge>
-                        <div className="flex items-center text-muted-foreground text-sm">
-                          <Users className="h-4 w-4 mr-1" />
-                          {classroom.students}
-                        </div>
-                      </div>
-                      <h3 className="font-semibold text-base mb-1">{classroom.name}</h3>
-                      <div className="flex justify-between text-sm mt-3">
-                        <span className="text-muted-foreground">
-                          5 learning modules
-                        </span>
-                        <span className="text-primary font-medium">Manage →</span>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-                
-                <div className="border border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center hover:border-primary transition-all cursor-pointer h-[114px]">
-                  <PlusCircle className="h-6 w-6 text-muted-foreground mb-2" />
-                  <p className="text-sm font-medium">Create New Classroom</p>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-r-transparent rounded-full"></div>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {classrooms.length > 0 ? (
+                    classrooms.slice(0, 4).map(classroom => (
+                      <Link href={`/teacher/classrooms/${classroom.id}`} key={classroom.id}>
+                        <div className="border rounded-lg p-4 hover:border-primary hover:shadow-sm transition-all cursor-pointer">
+                          <div className="flex justify-between items-start mb-2">
+                            <Badge variant="outline">{classroom.subject}</Badge>
+                            <div className="flex items-center text-muted-foreground text-sm">
+                              <Users className="h-4 w-4 mr-1" />
+                              {classroom.students}
+                            </div>
+                          </div>
+                          <h3 className="font-semibold text-base mb-1">{classroom.name}</h3>
+                          <div className="flex justify-between text-sm mt-3">
+                            <span className="text-muted-foreground">
+                              {classroom.code && (
+                                <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                                  Code: {classroom.code}
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-primary font-medium">Manage →</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="col-span-2 border border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center">
+                      <School className="h-10 w-10 text-muted-foreground mb-2" />
+                      <h3 className="font-medium">No Classrooms Yet</h3>
+                      <p className="text-sm text-muted-foreground mt-1 mb-4">
+                        Create your first classroom to get started
+                      </p>
+                      <Link href="/teacher/classrooms/create">
+                        <Button size="sm" className="gap-1">
+                          <Plus className="h-4 w-4" />
+                          Create Classroom
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                  
+                  {classrooms.length > 0 && (
+                    <Link href="/teacher/classrooms/create">
+                      <div className="border border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center h-[114px] hover:border-primary transition-all cursor-pointer">
+                        <PlusCircle className="h-6 w-6 text-muted-foreground mb-2" />
+                        <p className="text-sm font-medium">Create New Classroom</p>
+                      </div>
+                    </Link>
+                  )}
+                </div>
+              )}
             </CardContent>
             <CardFooter>
               <Link href="/teacher/classrooms">
@@ -301,25 +311,59 @@ export default function TeacherDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {studentAlerts.map(alert => (
-                  <div key={alert.id} className="border-l-4 border-primary p-3 rounded-lg bg-primary/5">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-medium text-sm">{alert.student}</h4>
-                      <Badge variant="outline" className="text-xs font-normal">
-                        {alert.subject}
-                      </Badge>
-                    </div>
-                    <p className="text-sm mt-1 text-muted-foreground">{alert.alert}</p>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-xs text-muted-foreground">{alert.date}</span>
-                      <Link href={`/teacher/students/${alert.id}`}>
-                        <Button variant="ghost" size="sm" className="h-7 text-xs">
-                          View Details
-                        </Button>
-                      </Link>
-                    </div>
+                <div className="border-l-4 border-primary p-3 rounded-lg bg-primary/5">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium text-sm">Alex Miller</h4>
+                    <Badge variant="outline" className="text-xs font-normal">
+                      Mathematics
+                    </Badge>
                   </div>
-                ))}
+                  <p className="text-sm mt-1 text-muted-foreground">Struggling with fractions</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-muted-foreground">Today</span>
+                    <Link href={`/teacher/students/s1`}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                        View Details
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+                
+                <div className="border-l-4 border-primary p-3 rounded-lg bg-primary/5">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium text-sm">Emma Lewis</h4>
+                    <Badge variant="outline" className="text-xs font-normal">
+                      Reading
+                    </Badge>
+                  </div>
+                  <p className="text-sm mt-1 text-muted-foreground">Missing last 2 assignments</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-muted-foreground">Yesterday</span>
+                    <Link href={`/teacher/students/s2`}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                        View Details
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+                
+                <div className="border-l-4 border-primary p-3 rounded-lg bg-primary/5">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium text-sm">Noah Wilson</h4>
+                    <Badge variant="outline" className="text-xs font-normal">
+                      Science
+                    </Badge>
+                  </div>
+                  <p className="text-sm mt-1 text-muted-foreground">Excellent progress in science project</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-muted-foreground">Apr 6</span>
+                    <Link href={`/teacher/students/s7`}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                        View Details
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
               </div>
             </CardContent>
             <CardFooter>
@@ -333,229 +377,6 @@ export default function TeacherDashboardPage() {
         </div>
       </div>
 
-      {/* Upcoming Meetings */}
-      <Card className="mb-6 border bg-card text-card-foreground shadow">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xl flex items-center">
-            <Calendar className="h-5 w-5 mr-2 text-primary" />
-            Upcoming Meetings
-          </CardTitle>
-          <CardDescription>Your scheduled video sessions with students</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {upcomingMeetings.map(meeting => (
-              <div 
-                key={meeting.id} 
-                className="border rounded-lg overflow-hidden"
-              >
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium">{meeting.title}</h3>
-                    <Badge variant="outline" className="text-xs">
-                      {meeting.classroom}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center text-sm text-muted-foreground mb-1">
-                    <Clock className="h-4 w-4 mr-1.5" />
-                    {meeting.time} · {meeting.duration}
-                  </div>
-                  
-                  <div className="flex items-start mt-3">
-                    <div className="flex -space-x-2 mr-2">
-                      {meeting.students.slice(0, 3).map((student, i) => (
-                        <Avatar key={i} className="h-6 w-6 border-2 border-white">
-                          <AvatarFallback className="text-xs bg-primary text-white">
-                            {student.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
-                      {meeting.students.length > 3 && (
-                        <div className="h-6 w-6 rounded-full bg-muted border-2 border-white flex items-center justify-center text-xs">
-                          +{meeting.students.length - 3}
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {meeting.students.length} student{meeting.students.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-                <div className="bg-muted/20 p-3 border-t">
-                  <Button 
-                    className="w-full"
-                    variant={meeting.time.includes('Today') ? 'default' : 'outline'}
-                    size="sm"
-                  >
-                    <Video className="h-4 w-4 mr-2" />
-                    {meeting.time.includes('Today') ? 'Join Now' : 'Schedule Reminder'}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <div className="w-full flex flex-col sm:flex-row gap-3 justify-between">
-            <Link href="/teacher/meetings">
-              <Button variant="outline" size="sm" className="justify-center">
-                View All Meetings
-              </Button>
-            </Link>
-            <Link href="/teacher/meetings/schedule">
-              <Button size="sm" className="justify-center gap-1">
-                <PlusCircle className="h-4 w-4" />
-                Schedule New Meeting
-              </Button>
-            </Link>
-          </div>
-        </CardFooter>
-      </Card>
-      
-      {/* Student Progress */}
-      <Card className="mb-6 border bg-card text-card-foreground shadow">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xl flex items-center">
-            <BarChart className="h-5 w-5 mr-2 text-primary" />
-            Student Progress Overview
-          </CardTitle>
-          <CardDescription>Monitor learning outcomes across your classrooms</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div>
-              <div className="flex justify-between mb-2">
-                <h3 className="font-medium">Grade 5 Mathematics</h3>
-                <span className="text-sm text-muted-foreground">Class Average: 78%</span>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Number Operations</span>
-                    <span>82%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '82%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Fractions & Decimals</span>
-                    <span>65%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '65%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Geometry</span>
-                    <span>88%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '88%' }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex justify-between mb-2">
-                <h3 className="font-medium">Reading & Comprehension</h3>
-                <span className="text-sm text-muted-foreground">Class Average: 72%</span>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Reading Fluency</span>
-                    <span>75%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '75%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Vocabulary</span>
-                    <span>68%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '68%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Text Analysis</span>
-                    <span>74%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '74%' }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Link href="/teacher/progress">
-              <Button variant="outline" size="sm" className="w-full justify-center">
-                Detailed Progress Reports
-              </Button>
-            </Link>
-            <Link href="/teacher/assessments">
-              <Button variant="outline" size="sm" className="w-full justify-center">
-                Create Assessment
-              </Button>
-            </Link>
-          </div>
-        </CardFooter>
-      </Card>
-      
-      {/* Quick Actions */}
-      // Update to app/teacher/dashboard/page.tsx Quick Actions section
-
-// Replace the existing Quick Actions Card with this updated version
-<Card className="border bg-card text-card-foreground shadow">
-  <CardHeader className="pb-3">
-    <CardTitle className="text-xl">Quick Actions</CardTitle>
-    <CardDescription>Common tasks and shortcuts</CardDescription>
-  </CardHeader>
-  <CardContent>
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <Link href="/teacher/documents/upload">
-        <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
-          <FileUp className="h-8 w-8 text-primary mb-2" />
-          <span className="text-sm font-medium text-center">Upload Learning Materials</span>
-        </div>
-      </Link>
-      
-      <Link href="/teacher/meetings/create">
-        <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">  
-          <Video className="h-8 w-8 text-primary mb-2" /> 
-          <span className="text-sm font-medium text-center">Start Video Session</span> 
-        </div>
-      </Link>
-      
-      <button 
-        onClick={() => setIsVoiceAssistantOpen(true)}
-        className="flex flex-col items-center justify-center p-4 rounded-lg border bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-colors h-32"
-      >
-        <Mic className="h-8 w-8 mb-2" />
-        <span className="text-sm font-medium text-center">Ask AI</span>
-      </button>
-      
-      <Link href="/teacher/documents">
-        <div className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 hover:border-primary transition-colors h-32">
-          <BookOpen className="h-8 w-8 text-primary mb-2" />
-          <span className="text-sm font-medium text-center">View Learning Materials</span>
-        </div>
-      </Link>
-    </div>
-  </CardContent>
-</Card>
-      
       {/* AI Assistant floating button */}
       <button
         onClick={() => setIsVoiceAssistantOpen(true)}
