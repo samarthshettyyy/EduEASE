@@ -27,29 +27,56 @@ interface ClassroomState {
   getClassroomByCode: (code: string) => Classroom | undefined;
 }
 
-// Generate a random 6-character alphanumeric code
-const generateClassroomCode = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  
-  for (let i = 0; i < 6; i++) {
-    const randomIndex = Math.floor(Math.random() * chars.length);
-    code += chars[randomIndex];
-  }
-  
-  return code;
-};
-
 // Create the store with persistence
 export const useClassroomStore = create<ClassroomState>()(
   persist(
     (set, get) => ({
-      classrooms: [],
+      classrooms: [
+        // Default classrooms that show up before user adds any
+        {
+          id: "c1",
+          name: "Grade 5 Mathematics",
+          subject: "Mathematics",
+          students: 18,
+          color: "bg-blue-100 text-blue-800 border-blue-200",
+          lastActive: "Today",
+          progress: 75,
+          resources: 12,
+          meetings: 3,
+          status: "active",
+          code: "L4JP4L"
+        },
+        {
+          id: "c2",
+          name: "Reading & Comprehension",
+          subject: "English",
+          students: 22,
+          color: "bg-green-100 text-green-800 border-green-200",
+          lastActive: "Yesterday",
+          progress: 68,
+          resources: 18,
+          meetings: 2,
+          status: "active"
+        },
+        {
+          id: "c3",
+          name: "Science Explorer",
+          subject: "Science",
+          students: 16,
+          color: "bg-purple-100 text-purple-800 border-purple-200",
+          lastActive: "2 days ago",
+          progress: 82,
+          resources: 15,
+          meetings: 1,
+          status: "active"
+        }
+      ],
       
       addClassroom: (classroom) => {
+        // If a code is not provided, generate one
         const classroomWithCode = {
           ...classroom,
-          code: generateClassroomCode()
+          code: classroom.code || generateClassroomCode()
         };
         
         set((state) => ({
@@ -82,3 +109,16 @@ export const useClassroomStore = create<ClassroomState>()(
     }
   )
 );
+
+// Helper function to generate a random 6-character alphanumeric code
+const generateClassroomCode = (): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  
+  for (let i = 0; i < 6; i++) {
+    const randomIndex = Math.floor(Math.random() * chars.length);
+    code += chars[randomIndex];
+  }
+  
+  return code;
+};

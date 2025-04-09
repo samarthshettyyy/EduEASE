@@ -1,5 +1,5 @@
 import { int, mysqlTable, primaryKey, text, timestamp, varchar } from "drizzle-orm/mysql-core";
-import { users } from "./schema";
+
 // Users table
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -52,10 +52,6 @@ export const sessions = mysqlTable("sessions", {
   userId: int("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at").notNull(),
 });
-// Add to your existing db/schema.ts file
-
-
-// Add these new tables to your schema.ts file
 
 // Classrooms table
 export const classrooms = mysqlTable("classrooms", {
@@ -70,7 +66,7 @@ export const classrooms = mysqlTable("classrooms", {
 
 // Classroom students junction table
 export const classroomStudents = mysqlTable("classroom_students", {
-  id: int("id").autoincrement().primaryKey(),
+  id: int("id").autoincrement(), // Removed primaryKey()
   classroomId: int("classroom_id").notNull().references(() => classrooms.id, { onDelete: "cascade" }),
   studentId: int("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   joinedAt: timestamp("joined_at").defaultNow(),
@@ -97,7 +93,7 @@ export const documents = mysqlTable("documents", {
 
 // Student documents junction table with tracking
 export const studentDocuments = mysqlTable("student_documents", {
-  id: int("id").autoincrement().primaryKey(),
+  id: int("id").autoincrement(), // Removed primaryKey()
   studentId: int("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   documentId: int("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
   viewed: int("viewed").default(0), // Using int as boolean (0/1)

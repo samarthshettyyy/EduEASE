@@ -50,6 +50,7 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog"
+import { useClassroomStore } from "@/lib/store/classroom-store"
 
 // Generate a random 6-character alphanumeric code
 const generateClassroomCode = () => {
@@ -72,6 +73,9 @@ export default function CreateClassroomPage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
   const [createdClassroom, setCreatedClassroom] = useState(null)
   const [codeCopied, setCodeCopied] = useState(false)
+  
+  // Get the addClassroom function from the store
+  const addClassroom = useClassroomStore((state) => state.addClassroom)
   
   // Form state
   const [classroomName, setClassroomName] = useState("")
@@ -154,6 +158,9 @@ export default function CreateClassroomPage() {
     }
     
     try {
+      // Add classroom to the Zustand store
+      addClassroom(newClassroom)
+      
       // Store newly created classroom data
       setCreatedClassroom(newClassroom)
       

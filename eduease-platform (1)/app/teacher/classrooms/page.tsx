@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -49,20 +49,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/use-toast";
-
-// Define the classroom type - we'll move this to a store later
-export interface Classroom {
-  id: string;
-  name: string;
-  subject: string;
-  students: number;
-  color: string;
-  lastActive: string;
-  progress: number;
-  resources: number;
-  meetings: number;
-  status: string;
-}
+import { useClassroomStore } from "@/lib/store/classroom-store";
 
 export default function TeacherClassroomsPage() {
   const router = useRouter();
@@ -70,98 +57,19 @@ export default function TeacherClassroomsPage() {
   const [viewType, setViewType] = useState("grid"); // grid or table
   const [statusFilter, setStatusFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Sample data for classrooms - we'll replace this with the store later
-  const [classrooms, setClassrooms] = useState<Classroom[]>([
-    {
-      id: "c1",
-      name: "Grade 5 Mathematics",
-      subject: "Mathematics",
-      students: 18,
-      color: "bg-blue-100 text-blue-800 border-blue-200",
-      lastActive: "Today",
-      progress: 75,
-      resources: 12,
-      meetings: 3,
-      status: "active"
-    },
-    {
-      id: "c2",
-      name: "Reading & Comprehension",
-      subject: "English",
-      students: 22,
-      color: "bg-green-100 text-green-800 border-green-200",
-      lastActive: "Yesterday",
-      progress: 68,
-      resources: 18,
-      meetings: 2,
-      status: "active"
-    },
-    {
-      id: "c3",
-      name: "Science Explorer",
-      subject: "Science",
-      students: 16,
-      color: "bg-purple-100 text-purple-800 border-purple-200",
-      lastActive: "2 days ago",
-      progress: 82,
-      resources: 15,
-      meetings: 1,
-      status: "active"
-    },
-    {
-      id: "c4",
-      name: "Social Studies",
-      subject: "Social Studies",
-      students: 20,
-      color: "bg-amber-100 text-amber-800 border-amber-200",
-      lastActive: "1 week ago",
-      progress: 45,
-      resources: 8,
-      meetings: 0,
-      status: "inactive"
-    },
-    {
-      id: "c5",
-      name: "Art & Creativity",
-      subject: "Art",
-      students: 14,
-      color: "bg-pink-100 text-pink-800 border-pink-200",
-      lastActive: "3 days ago",
-      progress: 60,
-      resources: 10,
-      meetings: 1,
-      status: "active"
-    },
-    {
-      id: "c6",
-      name: "Physical Education",
-      subject: "PE",
-      students: 24,
-      color: "bg-indigo-100 text-indigo-800 border-indigo-200",
-      lastActive: "4 days ago",
-      progress: 50,
-      resources: 6,
-      meetings: 0,
-      status: "archived"
-    }
-  ]);
+  // Get classrooms from the Zustand store
+  const { classrooms, updateClassroom, removeClassroom } = useClassroomStore();
   
-  // Function to update classroom status
-  const updateClassroom = (id: string, data: Partial<Classroom>) => {
-    setClassrooms(prevClassrooms => 
-      prevClassrooms.map((classroom) => 
-        classroom.id === id ? { ...classroom, ...data } : classroom
-      )
-    );
-  };
-  
-  // Function to remove classroom
-  const removeClassroom = (id: string) => {
-    setClassrooms(prevClassrooms => 
-      prevClassrooms.filter((classroom) => classroom.id !== id)
-    );
-  };
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   // Apply filters to classrooms
   const filteredClassrooms = classrooms.filter(classroom => {
@@ -200,6 +108,14 @@ export default function TeacherClassroomsPage() {
       });
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-screen">
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-r-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -393,7 +309,14 @@ export default function TeacherClassroomsPage() {
                       </div>
                     </div>
                     <CardTitle className="mt-2">{classroom.name}</CardTitle>
-                    <CardDescription>Last active: {classroom.lastActive}</CardDescription>
+                    <CardDescription>
+                      Last active: {classroom.lastActive}
+                      {classroom.code && (
+                        <div className="mt-1 font-mono text-xs bg-muted inline-block px-1.5 py-0.5 rounded">
+                          Code: {classroom.code}
+                        </div>
+                      )}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="pb-4">
                     <div className="space-y-3">
@@ -516,7 +439,14 @@ export default function TeacherClassroomsPage() {
                           <Link href={`/teacher/classrooms/${classroom.id}`} className="font-medium hover:text-primary">
                             {classroom.name}
                           </Link>
-                          <div className="text-xs text-muted-foreground">Last active: {classroom.lastActive}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Last active: {classroom.lastActive}
+                            {classroom.code && (
+                              <span className="ml-2 font-mono bg-muted px-1 py-0.5 rounded">
+                                Code: {classroom.code}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -648,7 +578,7 @@ export default function TeacherClassroomsPage() {
       </Tabs>
       
       {/* Empty State */}
-      {filteredClassrooms.length === 0 && (
+      {filteredClassrooms.length === 0 && classrooms.length > 0 && (
         <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg">
           <School className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="text-xl font-bold mb-2">No classrooms found</h2>
@@ -665,6 +595,23 @@ export default function TeacherClassroomsPage() {
         </div>
       )}
       
+      {/* No Classrooms State */}
+      {classrooms.length === 0 && (
+        <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg">
+          <School className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-bold mb-2">No classrooms yet</h2>
+          <p className="text-muted-foreground mb-6">
+            You haven't created any classrooms yet. Create your first classroom to get started.
+          </p>
+          <Link href="/teacher/classrooms/create">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Your First Classroom
+            </Button>
+          </Link>
+        </div>
+      )}
+      
       {/* Pagination */}
       {filteredClassrooms.length > 0 && (
         <div className="flex items-center justify-between mt-6">
@@ -678,9 +625,6 @@ export default function TeacherClassroomsPage() {
             <Button variant="outline" size="sm" className="w-8 h-8 p-0 bg-primary/10">
               1
             </Button>
-            <Button variant="outline" size="sm" className="w-8 h-8 p-0">
-              2
-            </Button>
             <Button variant="outline" size="sm" disabled>
               Next
             </Button>
@@ -688,5 +632,5 @@ export default function TeacherClassroomsPage() {
         </div>
       )}
     </div>
-  );
+  )
 }
