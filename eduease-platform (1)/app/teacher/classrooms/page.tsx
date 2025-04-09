@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   School, 
   Users, 
@@ -19,7 +19,7 @@ import {
   ChevronDown,
   BookOpen,
   CheckCircle
-} from "lucide-react"
+} from "lucide-react";
 import { 
   Card, 
   CardContent, 
@@ -27,10 +27,10 @@ import {
   CardFooter, 
   CardHeader, 
   CardTitle 
-} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,24 +38,41 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "@/components/ui/use-toast";
+
+// Define the classroom type - we'll move this to a store later
+export interface Classroom {
+  id: string;
+  name: string;
+  subject: string;
+  students: number;
+  color: string;
+  lastActive: string;
+  progress: number;
+  resources: number;
+  meetings: number;
+  status: string;
+}
 
 export default function TeacherClassroomsPage() {
-  const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [viewType, setViewType] = useState("grid") // grid or table
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewType, setViewType] = useState("grid"); // grid or table
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [subjectFilter, setSubjectFilter] = useState("all");
   
-  // Sample data for classrooms
-  const classrooms = [
+  // Sample data for classrooms - we'll replace this with the store later
+  const [classrooms, setClassrooms] = useState<Classroom[]>([
     {
       id: "c1",
       name: "Grade 5 Mathematics",
@@ -128,12 +145,61 @@ export default function TeacherClassroomsPage() {
       meetings: 0,
       status: "archived"
     }
-  ]
+  ]);
   
-  const filteredClassrooms = classrooms.filter(classroom => 
-    classroom.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    classroom.subject.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Function to update classroom status
+  const updateClassroom = (id: string, data: Partial<Classroom>) => {
+    setClassrooms(prevClassrooms => 
+      prevClassrooms.map((classroom) => 
+        classroom.id === id ? { ...classroom, ...data } : classroom
+      )
+    );
+  };
+  
+  // Function to remove classroom
+  const removeClassroom = (id: string) => {
+    setClassrooms(prevClassrooms => 
+      prevClassrooms.filter((classroom) => classroom.id !== id)
+    );
+  };
+  
+  // Apply filters to classrooms
+  const filteredClassrooms = classrooms.filter(classroom => {
+    // Apply search filter
+    const matchesSearch = 
+      classroom.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      classroom.subject.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Apply status filter
+    const matchesStatus = statusFilter === "all" || classroom.status === statusFilter;
+    
+    // Apply subject filter
+    const matchesSubject = subjectFilter === "all" || classroom.subject.toLowerCase() === subjectFilter;
+    
+    return matchesSearch && matchesStatus && matchesSubject;
+  });
+  
+  // Handle status change
+  const handleStatusChange = (id: string, newStatus: string) => {
+    updateClassroom(id, { status: newStatus });
+    
+    toast({
+      title: "Status updated",
+      description: `Classroom status has been changed to ${newStatus}`,
+    });
+  };
+  
+  // Handle classroom deletion
+  const handleDeleteClassroom = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this classroom? This action cannot be undone.")) {
+      removeClassroom(id);
+      
+      toast({
+        title: "Classroom deleted",
+        description: "The classroom has been permanently removed",
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -165,7 +231,10 @@ export default function TeacherClassroomsPage() {
         </div>
         
         <div className="flex gap-2">
-          <Select defaultValue="all">
+          <Select 
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+          >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -177,7 +246,10 @@ export default function TeacherClassroomsPage() {
             </SelectContent>
           </Select>
           
-          <Select defaultValue="all">
+          <Select 
+            value={subjectFilter}
+            onValueChange={setSubjectFilter}
+          >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Subject" />
             </SelectTrigger>
@@ -186,7 +258,7 @@ export default function TeacherClassroomsPage() {
               <SelectItem value="mathematics">Mathematics</SelectItem>
               <SelectItem value="english">English</SelectItem>
               <SelectItem value="science">Science</SelectItem>
-              <SelectItem value="social">Social Studies</SelectItem>
+              <SelectItem value="social studies">Social Studies</SelectItem>
               <SelectItem value="art">Art</SelectItem>
               <SelectItem value="pe">PE</SelectItem>
             </SelectContent>
@@ -371,18 +443,27 @@ export default function TeacherClassroomsPage() {
                           Start Meeting
                         </DropdownMenuItem>
                         {classroom.status === 'active' ? (
-                          <DropdownMenuItem className="text-amber-600">
+                          <DropdownMenuItem 
+                            className="text-amber-600"
+                            onClick={() => handleStatusChange(classroom.id, 'inactive')}
+                          >
                             <span className="h-4 w-4 mr-2">⏸️</span>
                             Set as Inactive
                           </DropdownMenuItem>
                         ) : classroom.status === 'inactive' ? (
-                          <DropdownMenuItem className="text-green-600">
+                          <DropdownMenuItem 
+                            className="text-green-600"
+                            onClick={() => handleStatusChange(classroom.id, 'active')}
+                          >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             Set as Active
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => handleDeleteClassroom(classroom.id)}
+                        >
                           <Trash className="h-4 w-4 mr-2" />
                           Delete Classroom
                         </DropdownMenuItem>
@@ -503,17 +584,26 @@ export default function TeacherClassroomsPage() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {classroom.status === 'active' ? (
-                                <DropdownMenuItem className="text-amber-600">
+                                <DropdownMenuItem 
+                                  className="text-amber-600"
+                                  onClick={() => handleStatusChange(classroom.id, 'inactive')}
+                                >
                                   <span className="h-4 w-4 mr-2">⏸️</span>
                                   Set as Inactive
                                 </DropdownMenuItem>
                               ) : classroom.status === 'inactive' ? (
-                                <DropdownMenuItem className="text-green-600">
+                                <DropdownMenuItem 
+                                  className="text-green-600"
+                                  onClick={() => handleStatusChange(classroom.id, 'active')}
+                                >
                                   <CheckCircle className="h-4 w-4 mr-2" />
                                   Set as Active
                                 </DropdownMenuItem>
                               ) : null}
-                              <DropdownMenuItem className="text-red-600">
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteClassroom(classroom.id)}
+                              >
                                 <Trash className="h-4 w-4 mr-2" />
                                 Delete Classroom
                               </DropdownMenuItem>
@@ -565,8 +655,12 @@ export default function TeacherClassroomsPage() {
           <p className="text-muted-foreground mb-6">
             We couldn't find any classrooms matching your search criteria.
           </p>
-          <Button onClick={() => setSearchQuery("")}>
-            Clear Search
+          <Button onClick={() => {
+            setSearchQuery("");
+            setStatusFilter("all");
+            setSubjectFilter("all");
+          }}>
+            Clear Filters
           </Button>
         </div>
       )}
@@ -594,5 +688,5 @@ export default function TeacherClassroomsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

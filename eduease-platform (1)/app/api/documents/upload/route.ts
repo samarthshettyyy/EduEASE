@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   try {
     // Get the authenticated user from session (implement according to your auth system)
     // This is a placeholder - replace with your actual auth logic
-    const auth = { 
+    const auth = {
       userId: 1, // Replace with actual user ID from session
       role: 'teacher' // Replace with actual user role from session
     };
@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
     // File URL for client-side access
     const fileUrl = `/uploads/documents/${classroomId}/${fileName}`;
 
-    // Create document record in the database
-    const [documentRecord] = await db.insert(documents).values({
+    // Create document record in the database - remove the .returning() method
+    await db.insert(documents).values({
       title,
       description,
       fileUrl,
@@ -71,7 +71,17 @@ export async function POST(req: NextRequest) {
       teacherId: auth.userId,
       createdAt: new Date(),
       updatedAt: new Date()
-    }).returning();
+    });
+    
+    // Get the inserted document ID by querying for it
+    const documentRecord = await db.query.documents.findFirst({
+      where: eq(documents.fileUrl, fileUrl),
+      orderBy: (documents, { desc }) => [desc(documents.createdAt)]
+    });
+    
+    if (!documentRecord) {
+      throw new Error("Failed to create document record");
+    }
 
     // Get all students in the classroom
     const classroomStudentsResult = await db.select().from(classroomStudents).where(eq(classroomStudents.classroomId, classroomId));

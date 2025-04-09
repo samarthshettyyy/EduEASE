@@ -38,6 +38,15 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
+// Fixed config without spread operators
 export const config = {
-  matcher: [...protectedPaths, ...authPaths],
+  matcher: [
+    "/dashboard", 
+    "/classroom", 
+    "/settings", 
+    "/teacher/dashboard", 
+    "/admin/dashboard",
+    "/login", 
+    "/register"
+  ]
 }

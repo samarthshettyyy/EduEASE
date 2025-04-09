@@ -40,11 +40,25 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
 
+// Import context or state management (add this)
+import { useClassroomStore } from "@/lib/store/classroom-store"
+
 export default function CreateClassroomPage() {
   const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   const [classroomColor, setClassroomColor] = useState("blue")
+  
+  // Add this - Access the global classroom store
+  const addClassroom = useClassroomStore((state) => state.addClassroom)
+  
+  // Form state
+  const [classroomName, setClassroomName] = useState("")
+  const [subject, setSubject] = useState("mathematics")
+  const [grade, setGrade] = useState("5")
+  const [description, setDescription] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
   
   // Sample data for available students
   const availableStudents = [
@@ -68,9 +82,39 @@ export default function CreateClassroomPage() {
   
   const handleCreateClassroom = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!classroomName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Classroom name is required",
+      })
+      return
+    }
+    
     setIsCreating(true)
     
-    // Simulate API call
+    // Generate a unique ID for the new classroom
+    const id = `c${Date.now()}`
+    
+    // Create the new classroom object
+    const newClassroom = {
+      id,
+      name: classroomName,
+      subject,
+      students: selectedStudents.length,
+      color: `bg-${classroomColor}-100 text-${classroomColor}-800 border-${classroomColor}-200`,
+      lastActive: "Just now",
+      progress: 0,
+      resources: 0,
+      meetings: 0,
+      status: "active"
+    }
+    
+    // Add new classroom to store
+    addClassroom(newClassroom)
+    
+    // Simulate API call and database update
     setTimeout(() => {
       setIsCreating(false)
       toast({
@@ -124,13 +168,22 @@ export default function CreateClassroomPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Classroom Name</Label>
-                  <Input id="name" placeholder="e.g., Grade 5 Mathematics" required />
+                  <Input 
+                    id="name" 
+                    placeholder="e.g., Grade 5 Mathematics" 
+                    required 
+                    value={classroomName}
+                    onChange={(e) => setClassroomName(e.target.value)}
+                  />
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="subject">Subject</Label>
-                    <Select defaultValue="mathematics">
+                    <Select 
+                      value={subject} 
+                      onValueChange={(value) => setSubject(value)}
+                    >
                       <SelectTrigger id="subject">
                         <SelectValue placeholder="Select subject" />
                       </SelectTrigger>
@@ -147,7 +200,10 @@ export default function CreateClassroomPage() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="grade">Grade Level</Label>
-                    <Select defaultValue="5">
+                    <Select 
+                      value={grade} 
+                      onValueChange={(value) => setGrade(value)}
+                    >
                       <SelectTrigger id="grade">
                         <SelectValue placeholder="Select grade" />
                       </SelectTrigger>
@@ -172,6 +228,8 @@ export default function CreateClassroomPage() {
                     id="description" 
                     placeholder="Provide a brief description about this classroom and its learning goals"
                     rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
                 
@@ -211,12 +269,22 @@ export default function CreateClassroomPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="start-date">Start Date</Label>
-                    <Input type="date" id="start-date" />
+                    <Input 
+                      type="date" 
+                      id="start-date" 
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="end-date">End Date (Optional)</Label>
-                    <Input type="date" id="end-date" />
+                    <Input 
+                      type="date" 
+                      id="end-date" 
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -437,7 +505,7 @@ export default function CreateClassroomPage() {
           </Button>
           <Button
             type="submit"
-            disabled={isCreating}
+            disabled={isCreating || !classroomName.trim()}
           >
             {isCreating ? "Creating..." : "Create Classroom"}
           </Button>
