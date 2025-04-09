@@ -60,6 +60,7 @@ export const classrooms = mysqlTable("classrooms", {
   description: text("description"),
   subject: varchar("subject", { length: 100 }),
   teacherId: int("teacher_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  roomCode: varchar("room_code", { length: 10 }).notNull().unique(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
