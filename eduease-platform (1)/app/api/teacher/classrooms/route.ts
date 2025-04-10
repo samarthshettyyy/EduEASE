@@ -1,46 +1,39 @@
-// app/api/teacher/classrooms/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { classrooms } from "@/db/schema";
-import { eq } from "drizzle-orm";
+// app/api/classrooms/route.ts
+import { NextResponse } from 'next/server';
+import { db } from '@/db';  // Assuming you have your database client set up here
+import { classrooms } from '@/db/schema';  // Assuming classrooms schema is correctly imported
+import { eq, desc } from 'drizzle-orm';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    // Get the authenticated user from session (implement according to your auth system)
-    // This is a placeholder - replace with your actual auth logic
-    const auth = { 
-      userId: 1, // Replace with actual user ID from session
-      role: 'teacher' // Replace with actual user role from session
-    };
+    // Extract teacher_id from the query params in the request URL
+    const url = new URL(req.url);
+    const teacherId = url.searchParams.get('teacher_id');
+    console.warn(teacherId);
     
-    // Only teachers can access their classrooms
-    if (auth.role !== 'teacher') {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    // If teacher_id is missing, return an error
+    if (!teacherId) {
+      return NextResponse.json({ error: 'Teacher ID is required.' }, { status: 400 });
     }
-    
-    // Get all classrooms where this teacher is the owner
-    const teacherClassrooms = await db.select().from(classrooms).where(eq(classrooms.teacherId, auth.userId));
-    
-    // For development, if no classrooms exist, return mock data
-    if (teacherClassrooms.length === 0) {
-      // Mock classrooms for development
-      return NextResponse.json({
-        classrooms: [
-          { id: 1, name: "Mathematics 101" },
-          { id: 2, name: "Science Class" },
-          { id: 3, name: "Language Arts" }
-        ]
-      });
+
+    // Fetch classrooms associated with the teacher_id
+    const classroomsData = await db
+      .select()
+      .from(classrooms)
+      .where(eq(classrooms.teacherId, teacherId))
+      .orderBy(desc(classrooms.createdAt)) // Optionally order by creation date (latest first)
+      .execute();  // Fetch all classrooms
+
+    // If no classrooms are found for the teacher, return a message
+    if (classroomsData.length === 0) {
+      return NextResponse.json({ message: 'No classrooms found for this teacher.' }, { status: 404 });
     }
-    
-    return NextResponse.json({
-      classrooms: teacherClassrooms
-    });
+
+    // Return the classrooms in the response
+    return NextResponse.json({ classrooms: classroomsData }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching teacher classrooms:', error);
-    return NextResponse.json(
-      { error: "Failed to fetch classrooms" },
-      { status: 500 }
-    );
+    console.error('Error fetching classrooms:', error);
+    // Handle unexpected errors and return an internal server error
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }

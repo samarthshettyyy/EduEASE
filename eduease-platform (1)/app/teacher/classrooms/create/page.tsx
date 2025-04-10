@@ -52,6 +52,9 @@ import {
 } from "@/components/ui/dialog"
 
 export default function CreateClassroomPage() {
+
+  const user = JSON.parse(localStorage.getItem("user"));
+
   const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
   const [selectedStudents, setSelectedStudents] = useState([])
@@ -128,6 +131,7 @@ export default function CreateClassroomPage() {
           name: classroomName,
           description,
           subject,
+          teacher_id: user.id,
           grade
         }),
       });

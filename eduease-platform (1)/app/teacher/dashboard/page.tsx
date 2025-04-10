@@ -38,46 +38,73 @@ export default function TeacherDashboardPage() {
   const router = useRouter()
   
   // Get classrooms from the store
-  const classrooms = useClassroomStore((state) => state.classrooms)
   
   // State for recently created classroom banner
   const [recentClassroom, setRecentClassroom] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  const [error, setError] = useState("");
+  const [classrooms, setClassrooms] = useState([]);
+  
+  const user = JSON.parse(localStorage.getItem("user"));
+  const teacherId = user.id; // Get teacher_id from the user object in localStorage
+
+  useEffect(() => {
+    const fetchClassrooms = async () => {
+      if (!teacherId) {
+        setError("Teacher ID is missing.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/teacher/classrooms?teacher_id=${teacherId}`);
+        if (!response.ok) {
+          console.warn("Here");
+          throw new Error("Failed to fetch classrooms.");
+        }
+
+        const data = await response.json();
+        setClassrooms(data.classrooms);
+      } catch (err) {
+        console.error("Error fetching classrooms:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchClassrooms();
+  }, [teacherId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+  if (error) return <div>Error: {error}</div>;
   
   // Check if a classroom was just created by looking at session storage
-  useEffect(() => {
-    const justCreatedClassroom = sessionStorage.getItem('justCreatedClassroom')
+  // useEffect(() => {
+  //   const justCreatedClassroom = sessionStorage.getItem('justCreatedClassroom')
     
-    if (justCreatedClassroom) {
-      try {
-        const classroomData = JSON.parse(justCreatedClassroom)
-        setRecentClassroom(classroomData)
+  //   if (justCreatedClassroom) {
+  //     try {
+  //       const classroomData = JSON.parse(justCreatedClassroom)
+  //       setRecentClassroom(classroomData)
         
-        // Clear from session storage so it doesn't show on refresh
-        sessionStorage.removeItem('justCreatedClassroom')
-      } catch (error) {
-        console.error('Error parsing classroom data:', error)
-      }
-    }
-    
-    // Fetch classrooms from API and update store if needed
-    const fetchClassrooms = async () => {
-      try {
-        const response = await fetch('/api/teacher/classrooms')
-        if (response.ok) {
-          const data = await response.json()
-          // You could update the store here if needed
-          // This would sync your frontend store with backend data
-        }
-      } catch (error) {
-        console.error('Error fetching classrooms:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    fetchClassrooms()
-  }, [])
+  //       // Clear from session storage so it doesn't show on refresh
+  //       sessionStorage.removeItem('justCreatedClassroom')
+  //     } catch (error) {
+  //       console.error('Error parsing classroom data:', error)
+  //     }
+  //   }
+  // }, [])
 
   // Function to handle logout
   const handleLogout = async () => {
@@ -90,7 +117,7 @@ export default function TeacherDashboardPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, Ms. Johnson</p>
+          <p className="text-muted-foreground">Welcome back, {user.name}</p>
         </div>
 
         <div className="flex items-center gap-4">
