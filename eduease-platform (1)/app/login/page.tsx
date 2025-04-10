@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -21,7 +21,16 @@ const formSchema = z.object({
 })
 
 export default function LoginPage() {
+
   const router = useRouter()
+  
+  useEffect(() => {
+    const auth = localStorage.getItem('user');
+    if (auth) {
+      router.push('/dashboard');
+    }
+  }, [router]);
+
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -49,6 +58,8 @@ export default function LoginPage() {
       if (!response.ok) {
         throw new Error(data.message || "Login failed")
       }
+
+      localStorage.setItem('user', JSON.stringify(data.user));
 
       toast({
         title: "Login successful",

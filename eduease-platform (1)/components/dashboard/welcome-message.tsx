@@ -9,7 +9,8 @@ import { Name } from "drizzle-orm"
 export function WelcomeMessage() {
   const [isVisible, setIsVisible] = useState(true)
   const [greeting, setGreeting] = useState("Good morning")
-  const [userName, setUserName] = useState("Alex")
+
+  const user = JSON.parse(localStorage.getItem('user'));
   
   useEffect(() => {
     const hour = new Date().getHours()
@@ -29,7 +30,7 @@ export function WelcomeMessage() {
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold">{greeting}, {userName}! 👋</h2>
+            <h2 className="text-2xl font-bold">{greeting}, {user.name}! 👋</h2>
             <p className="text-muted-foreground mt-1">
               Ready to continue your learning journey? Here's what you have today.
             </p>

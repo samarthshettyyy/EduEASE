@@ -18,14 +18,14 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   // Check if path is protected and user is not logged in
-  if (
-    protectedPaths.some((protectedPath) => path.startsWith(protectedPath)) &&
-    !sessionCookie
-  ) {
-    const url = new URL("/login", request.url)
-    url.searchParams.set("callbackUrl", path)
-    return NextResponse.redirect(url)
-  }
+  // if (
+  //   protectedPaths.some((protectedPath) => path.startsWith(protectedPath)) &&
+  //   !sessionCookie
+  // ) {
+  //   const url = new URL("/login", request.url)
+  //   url.searchParams.set("callbackUrl", path)
+  //   return NextResponse.redirect(url)
+  // }
 
   // Check if user is logged in and trying to access auth pages
   if (

@@ -14,61 +14,53 @@ import { BookOpen, Video, MessageSquare, BarChart, Mic, LogOut } from "lucide-re
 import { toast } from "@/components/ui/use-toast"
 
 export default function DashboardPage() {
-  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
-  const [userRole, setUserRole] = useState("student") // Default to student
+
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState(null)
+  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
+  const [userRole, setUserRole] = useState("student")
 
-  // Fetch user role on mount
+  // Check authentication on component mount
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await fetch('/api/auth/me')
-        if (response.ok) {
-          const userData = await response.json()
-          setUserRole(userData.role)
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error)
-      }
-    }
-    
-    fetchUserData()
-  }, [])
-
-  // Function to handle logout
-  const handleLogout = async () => {
     try {
-      // Call your logout API endpoint
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (response.ok) {
-        toast({
-          title: "Logged out successfully",
-          description: "You have been logged out of your account"
-        })
-        // Redirect to login page after successful logout
-        router.push('/login')
+      const userData = localStorage.getItem('user')
+      console.warn("User data:", userData)
+      
+      if (userData) {
+        setUser(JSON.parse(userData))
       } else {
-        console.error('Logout failed')
-        toast({
-          title: "Logout failed",
-          description: "There was an issue logging out",
-          variant: "destructive"
-        })
+        router.push("/login")
       }
     } catch (error) {
-      console.error('Logout error:', error)
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      })
+      console.error("Error checking auth:", error)
+      router.push("/login")
+    } finally {
+      setIsLoading(false)
     }
+  }, [router])
+
+  // Function to handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('user')
+    router.push("/login")
+  }
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If no user is found after loading, don't render the dashboard
+  if (!user) {
+    return null
   }
 
   return (

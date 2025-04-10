@@ -1,10 +1,10 @@
-import { logout } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
-    await logout();
     
+    localStorage.removeItem('user');
+
     return NextResponse.json({
       message: "Logout successful",
     });

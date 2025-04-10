@@ -81,34 +81,8 @@ export default function TeacherDashboardPage() {
 
   // Function to handle logout
   const handleLogout = async () => {
-    try {
-      // Call your logout API endpoint
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (response.ok) {
-        // Redirect to login page after successful logout
-        router.push('/login')
-      } else {
-        console.error('Logout failed')
-        toast({
-          variant: "destructive",
-          title: "Logout failed",
-          description: "Please try again"
-        })
-      }
-    } catch (error) {
-      console.error('Logout error:', error)
-      toast({
-        variant: "destructive",
-        title: "Logout error",
-        description: "An unexpected error occurred"
-      })
-    }
+    localStorage.removeItem('user')
+    router.push("/login")
   }
 
   return (
