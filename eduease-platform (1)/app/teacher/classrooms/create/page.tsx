@@ -1,4 +1,3 @@
-// app/teacher/classrooms/create/page.tsx
 "use client"
 
 import { useState } from "react"
@@ -17,7 +16,8 @@ import {
   User,
   X,
   Copy,
-  CheckCircle
+  CheckCircle,
+  Loader
 } from "lucide-react"
 import { 
   Card, 
@@ -50,20 +50,6 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog"
-import { useClassroomStore } from "@/lib/store/classroom-store"
-
-// Generate a random 6-character alphanumeric code
-const generateClassroomCode = () => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  
-  for (let i = 0; i < 6; i++) {
-    const randomIndex = Math.floor(Math.random() * chars.length);
-    code += chars[randomIndex];
-  }
-  
-  return code;
-};
 
 export default function CreateClassroomPage() {
   const router = useRouter()
@@ -73,9 +59,6 @@ export default function CreateClassroomPage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
   const [createdClassroom, setCreatedClassroom] = useState(null)
   const [codeCopied, setCodeCopied] = useState(false)
-  
-  // Get the addClassroom function from the store
-  const addClassroom = useClassroomStore((state) => state.addClassroom)
   
   // Form state
   const [classroomName, setClassroomName] = useState("")
@@ -106,8 +89,8 @@ export default function CreateClassroomPage() {
   }
 
   const copyCodeToClipboard = () => {
-    if (createdClassroom?.code) {
-      navigator.clipboard.writeText(createdClassroom.code);
+    if (createdClassroom?.roomCode) {
+      navigator.clipboard.writeText(createdClassroom.roomCode);
       setCodeCopied(true);
       
       toast({
@@ -134,53 +117,45 @@ export default function CreateClassroomPage() {
     
     setIsCreating(true)
     
-    // Generate a unique ID for the new classroom
-    const id = `c${Date.now()}`
-    
-    // Generate a classroom code
-    const code = generateClassroomCode()
-    
-    // Create the new classroom object
-    const newClassroom = {
-      id,
-      name: classroomName,
-      subject,
-      students: selectedStudents.length,
-      color: `bg-${classroomColor}-100 text-${classroomColor}-800 border-${classroomColor}-200`,
-      lastActive: "Just now",
-      progress: 0,
-      resources: 0,
-      meetings: 0,
-      status: "active",
-      grade,
-      description,
-      code
-    }
-    
     try {
-      // Add classroom to the Zustand store
-      addClassroom(newClassroom)
+      // Create classroom via API
+      const response = await fetch('/api/classrooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: classroomName,
+          description,
+          subject,
+          grade
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create classroom');
+      }
+      
+      const data = await response.json();
       
       // Store newly created classroom data
-      setCreatedClassroom(newClassroom)
+      setCreatedClassroom(data.classroom);
       
       // Save to session storage for the dashboard to display
-      sessionStorage.setItem('justCreatedClassroom', JSON.stringify(newClassroom))
+      sessionStorage.setItem('justCreatedClassroom', JSON.stringify(data.classroom));
       
-      // Simulate API call (in a real app, you'd actually save to the backend)
-      setTimeout(() => {
-        setIsCreating(false)
-        setShowSuccessDialog(true)
-      }, 1500)
+      setIsCreating(false);
+      setShowSuccessDialog(true);
       
     } catch (error) {
-      console.error('Error creating classroom:', error)
+      console.error('Error creating classroom:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create classroom. Please try again.",
-      })
-      setIsCreating(false)
+        description: error.message || "Failed to create classroom. Please try again.",
+      });
+      setIsCreating(false);
     }
   }
   
@@ -564,6 +539,7 @@ export default function CreateClassroomPage() {
             type="button"
             variant="outline"
             onClick={() => router.back()}
+            disabled={isCreating}
           >
             Cancel
           </Button>
@@ -571,7 +547,14 @@ export default function CreateClassroomPage() {
             type="submit"
             disabled={isCreating || !classroomName.trim()}
           >
-            {isCreating ? "Creating..." : "Create Classroom"}
+            {isCreating ? (
+              <>
+                <Loader className="h-4 w-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Classroom"
+            )}
           </Button>
         </div>
       </form>
@@ -591,16 +574,16 @@ export default function CreateClassroomPage() {
           
           <div className="flex flex-col items-center py-4">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-bold mb-1">{classroomName}</h2>
+              <h2 className="text-xl font-bold mb-1">{createdClassroom?.name}</h2>
               <p className="text-sm text-muted-foreground">
-                Subject: {subject} | Students: {selectedStudents.length}
+                Subject: {createdClassroom?.subject} | Students: {selectedStudents.length}
               </p>
             </div>
             
             <div className="bg-muted p-6 rounded-lg w-full text-center mb-4">
               <p className="text-sm text-muted-foreground mb-2">Classroom Join Code</p>
               <div className="flex items-center justify-center gap-2">
-                <p className="text-3xl font-bold tracking-wide">{createdClassroom?.code}</p>
+                <p className="text-3xl font-bold tracking-wide">{createdClassroom?.roomCode}</p>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -635,7 +618,6 @@ export default function CreateClassroomPage() {
   )
 }
 
-// Simple info icon for the dialog
 function InfoIcon(props) {
   return (
     <svg

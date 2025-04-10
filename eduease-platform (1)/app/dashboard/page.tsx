@@ -1,19 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { WelcomeMessage } from "@/components/dashboard/welcome-message"
 import { LearningProgress } from "@/components/dashboard/learning-progress"
 import { UpcomingLessons } from "@/components/dashboard/upcoming-lessons"
 import { RecommendedResources } from "@/components/dashboard/recommended-resources"
 import { Rooms } from "@/components/dashboard/rooms"
+import { StudentClassrooms } from "@/components/dashboard/student-classrooms"
 import { VoiceAssistantWidget } from "@/components/voice-assistant-widget"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { BookOpen, Video, MessageSquare, BarChart, Mic, LogOut } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
 
 export default function DashboardPage() {
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
+  const [userRole, setUserRole] = useState("student") // Default to student
   const router = useRouter()
+
+  // Fetch user role on mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/auth/me')
+        if (response.ok) {
+          const userData = await response.json()
+          setUserRole(userData.role)
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      }
+    }
+    
+    fetchUserData()
+  }, [])
 
   // Function to handle logout
   const handleLogout = async () => {
@@ -27,13 +47,27 @@ export default function DashboardPage() {
       })
 
       if (response.ok) {
+        toast({
+          title: "Logged out successfully",
+          description: "You have been logged out of your account"
+        })
         // Redirect to login page after successful logout
         router.push('/login')
       } else {
         console.error('Logout failed')
+        toast({
+          title: "Logout failed",
+          description: "There was an issue logging out",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       console.error('Logout error:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      })
     }
   }
 
@@ -49,6 +83,13 @@ export default function DashboardPage() {
           Logout
         </button>
       </div>
+      
+      {/* Student-specific UI: Classrooms */}
+      {userRole === 'student' && (
+        <div className="mb-8">
+          <StudentClassrooms />
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         {/* Left column - Today's Schedule */}

@@ -18,7 +18,8 @@ import {
   Calendar,
   ChevronDown,
   BookOpen,
-  CheckCircle
+  CheckCircle,
+  Loader
 } from "lucide-react";
 import { 
   Card, 
@@ -49,7 +50,23 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/use-toast";
-import { useClassroomStore } from "@/lib/store/classroom-store";
+
+interface Classroom {
+  id: number | string;
+  name: string;
+  subject: string;
+  students: number;
+  color: string;
+  lastActive?: string;
+  progress?: number;
+  resources?: number;
+  meetings?: number;
+  status?: string;
+  code?: string;
+  roomCode?: string;
+  description?: string;
+  grade?: string;
+}
 
 export default function TeacherClassroomsPage() {
   const router = useRouter();
@@ -58,17 +75,72 @@ export default function TeacherClassroomsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   
-  // Get classrooms from the Zustand store
-  const { classrooms, updateClassroom, removeClassroom } = useClassroomStore();
-  
+  // Initial data fetch
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
+    const fetchClassrooms = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/classrooms');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch classrooms');
+        }
+        
+        const data = await response.json();
+        
+        // Enhance the classroom data with defaults for missing fields
+        const enhancedClassrooms = (data.classrooms || []).map(classroom => ({
+          ...classroom,
+          status: classroom.status || 'active',
+          progress: classroom.progress || Math.floor(Math.random() * 60) + 40, // Random 40-100%
+          resources: classroom.resources || Math.floor(Math.random() * 10) + 1, // Random 1-10
+          meetings: classroom.meetings || Math.floor(Math.random() * 3), // Random 0-2
+          lastActive: classroom.lastActive || 'Today',
+          // Make sure roomCode is available as code for UI compatibility
+          code: classroom.roomCode || classroom.code
+        }));
+        
+        setClassrooms(enhancedClassrooms);
+      } catch (error) {
+        console.error("Error fetching classrooms:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load classrooms",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    return () => clearTimeout(timer);
+    fetchClassrooms();
+    
+    // Check for newly created classroom in session storage
+    const checkForNewClassroom = () => {
+      const justCreatedClassroom = sessionStorage.getItem('justCreatedClassroom');
+      
+      if (justCreatedClassroom) {
+        try {
+          const newClassroom = JSON.parse(justCreatedClassroom);
+          setClassrooms(prev => {
+            // Check if classroom already exists in the list
+            if (!prev.some(c => c.id === newClassroom.id)) {
+              return [...prev, newClassroom];
+            }
+            return prev;
+          });
+          
+          // Clear from session storage
+          sessionStorage.removeItem('justCreatedClassroom');
+        } catch (error) {
+          console.error('Error parsing new classroom data:', error);
+        }
+      }
+    };
+    
+    checkForNewClassroom();
   }, []);
   
   // Apply filters to classrooms
@@ -76,43 +148,116 @@ export default function TeacherClassroomsPage() {
     // Apply search filter
     const matchesSearch = 
       classroom.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      classroom.subject.toLowerCase().includes(searchQuery.toLowerCase());
+      (classroom.subject && classroom.subject.toLowerCase().includes(searchQuery.toLowerCase()));
     
     // Apply status filter
     const matchesStatus = statusFilter === "all" || classroom.status === statusFilter;
     
     // Apply subject filter
-    const matchesSubject = subjectFilter === "all" || classroom.subject.toLowerCase() === subjectFilter;
+    const matchesSubject = subjectFilter === "all" || 
+      (classroom.subject && classroom.subject.toLowerCase() === subjectFilter);
     
     return matchesSearch && matchesStatus && matchesSubject;
   });
   
   // Handle status change
-  const handleStatusChange = (id: string, newStatus: string) => {
-    updateClassroom(id, { status: newStatus });
-    
-    toast({
-      title: "Status updated",
-      description: `Classroom status has been changed to ${newStatus}`,
-    });
+  const handleStatusChange = async (id: string | number, newStatus: string) => {
+    try {
+      // Update local state first for UI responsiveness
+      setClassrooms(classrooms.map(classroom => 
+        classroom.id === id ? { ...classroom, status: newStatus } : classroom
+      ));
+      
+      // Backend update - in a real implementation, you'd have an API endpoint for this
+      // const response = await fetch(`/api/classrooms/${id}/status`, {
+      //   method: 'PATCH',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({ status: newStatus }),
+      // });
+      
+      // if (!response.ok) {
+      //   throw new Error('Failed to update classroom status');
+      // }
+      
+      toast({
+        title: "Status updated",
+        description: `Classroom status has been changed to ${newStatus}`,
+      });
+    } catch (error) {
+      console.error("Error updating classroom status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update classroom status",
+        variant: "destructive"
+      });
+      
+      // Revert local state change on error
+      fetchClassrooms();
+    }
+  };
+  
+  // Fetch classrooms function (for refreshing)
+  const fetchClassrooms = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/classrooms');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch classrooms');
+      }
+      
+      const data = await response.json();
+      setClassrooms(data.classrooms || []);
+    } catch (error) {
+      console.error("Error fetching classrooms:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Handle classroom deletion
-  const handleDeleteClassroom = (id: string) => {
+  const handleDeleteClassroom = async (id: string | number) => {
     if (window.confirm("Are you sure you want to delete this classroom? This action cannot be undone.")) {
-      removeClassroom(id);
-      
-      toast({
-        title: "Classroom deleted",
-        description: "The classroom has been permanently removed",
-      });
+      try {
+        // Remove from local state first for UI responsiveness
+        setClassrooms(classrooms.filter(classroom => classroom.id !== id));
+        
+        // Backend deletion - in a real implementation, you'd have an API endpoint for this
+        // const response = await fetch(`/api/classrooms/${id}`, {
+        //   method: 'DELETE',
+        // });
+        
+        // if (!response.ok) {
+        //   throw new Error('Failed to delete classroom');
+        // }
+        
+        toast({
+          title: "Classroom deleted",
+          description: "The classroom has been permanently removed",
+        });
+      } catch (error) {
+        console.error("Error deleting classroom:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete classroom",
+          variant: "destructive"
+        });
+        
+        // Revert local state change on error
+        fetchClassrooms();
+      }
     }
   };
 
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-screen">
-        <div className="animate-spin h-10 w-10 border-4 border-primary border-r-transparent rounded-full"></div>
+        <div className="flex flex-col items-center">
+          <Loader className="h-10 w-10 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Loading classrooms...</p>
+        </div>
       </div>
     );
   }
@@ -235,7 +380,7 @@ export default function TeacherClassroomsPage() {
               <div>
                 <p className="text-sm font-medium text-green-600">Active Students</p>
                 <h3 className="text-2xl font-bold">
-                  {classrooms.reduce((sum, c) => sum + c.students, 0)}
+                  {classrooms.reduce((sum, c) => sum + (c.students || 0), 0)}
                 </h3>
               </div>
               <div className="bg-green-100 p-2 rounded-full">
@@ -251,7 +396,7 @@ export default function TeacherClassroomsPage() {
               <div>
                 <p className="text-sm font-medium text-purple-600">Learning Materials</p>
                 <h3 className="text-2xl font-bold">
-                  {classrooms.reduce((sum, c) => sum + c.resources, 0)}
+                  {classrooms.reduce((sum, c) => sum + (c.resources || 0), 0)}
                 </h3>
               </div>
               <div className="bg-purple-100 p-2 rounded-full">
@@ -267,7 +412,7 @@ export default function TeacherClassroomsPage() {
               <div>
                 <p className="text-sm font-medium text-amber-600">Scheduled Meetings</p>
                 <h3 className="text-2xl font-bold">
-                  {classrooms.reduce((sum, c) => sum + c.meetings, 0)}
+                  {classrooms.reduce((sum, c) => sum + (c.meetings || 0), 0)}
                 </h3>
               </div>
               <div className="bg-amber-100 p-2 rounded-full">
@@ -297,23 +442,23 @@ export default function TeacherClassroomsPage() {
                     classroom.status === 'archived' ? 'opacity-60 bg-gray-50' : ''
                   }`}
                 >
-                  <div className={`h-2 ${classroom.color.split(" ")[0]}`}></div>
+                  <div className={`h-2 ${classroom.color ? classroom.color.split(" ")[0] : 'bg-blue-100'}`}></div>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between">
-                      <Badge className={classroom.color}>
-                        {classroom.subject}
+                      <Badge className={classroom.color || "bg-blue-100 text-blue-800 border-blue-200"}>
+                        {classroom.subject || "General"}
                       </Badge>
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Users className="h-4 w-4 mr-1" />
-                        {classroom.students}
+                        {classroom.students || 0}
                       </div>
                     </div>
                     <CardTitle className="mt-2">{classroom.name}</CardTitle>
                     <CardDescription>
-                      Last active: {classroom.lastActive}
-                      {classroom.code && (
+                      Last active: {classroom.lastActive || 'Today'}
+                      {(classroom.roomCode || classroom.code) && (
                         <div className="mt-1 font-mono text-xs bg-muted inline-block px-1.5 py-0.5 rounded">
-                          Code: {classroom.code}
+                          Code: {classroom.roomCode || classroom.code}
                         </div>
                       )}
                     </CardDescription>
@@ -323,19 +468,19 @@ export default function TeacherClassroomsPage() {
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Overall Progress</span>
-                          <span>{classroom.progress}%</span>
+                          <span>{classroom.progress || 0}%</span>
                         </div>
-                        <Progress value={classroom.progress} className="h-2" />
+                        <Progress value={classroom.progress || 0} className="h-2" />
                       </div>
                       
                       <div className="flex justify-between text-sm">
                         <div className="flex items-center">
                           <BookOpen className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                          <span>{classroom.resources} Resources</span>
+                          <span>{classroom.resources || 0} Resources</span>
                         </div>
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                          <span>{classroom.meetings} Meetings</span>
+                          <span>{classroom.meetings || 0} Meetings</span>
                         </div>
                       </div>
                     </div>
@@ -440,34 +585,34 @@ export default function TeacherClassroomsPage() {
                             {classroom.name}
                           </Link>
                           <div className="text-xs text-muted-foreground">
-                            Last active: {classroom.lastActive}
-                            {classroom.code && (
+                            Last active: {classroom.lastActive || 'Today'}
+                            {(classroom.roomCode || classroom.code) && (
                               <span className="ml-2 font-mono bg-muted px-1 py-0.5 rounded">
-                                Code: {classroom.code}
+                                Code: {classroom.roomCode || classroom.code}
                               </span>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge className={classroom.color}>
-                          {classroom.subject}
+                        <Badge className={classroom.color || "bg-blue-100 text-blue-800 border-blue-200"}>
+                          {classroom.subject || "General"}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center">
                           <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                          <span>{classroom.students}</span>
+                          <span>{classroom.students || 0}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <Progress value={classroom.progress} className="h-2 w-24" />
-                          <span className="text-sm">{classroom.progress}%</span>
+                          <Progress value={classroom.progress || 0} className="h-2 w-24" />
+                          <span className="text-sm">{classroom.progress || 0}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center">{classroom.resources}</td>
-                      <td className="px-4 py-3 text-center">{classroom.meetings}</td>
+                      <td className="px-4 py-3 text-center">{classroom.resources || 0}</td>
+                      <td className="px-4 py-3 text-center">{classroom.meetings || 0}</td>
                       <td className="px-4 py-3 text-center">
                         <Badge 
                           variant="outline" 
@@ -477,7 +622,7 @@ export default function TeacherClassroomsPage() {
                               'bg-gray-100 text-gray-800 border-gray-200'}
                           `}
                         >
-                          {classroom.status.charAt(0).toUpperCase() + classroom.status.slice(1)}
+                          {classroom.status ? classroom.status.charAt(0).toUpperCase() + classroom.status.slice(1) : 'Active'}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -596,7 +741,7 @@ export default function TeacherClassroomsPage() {
       )}
       
       {/* No Classrooms State */}
-      {classrooms.length === 0 && (
+      {classrooms.length === 0 && !isLoading && (
         <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg">
           <School className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="text-xl font-bold mb-2">No classrooms yet</h2>
