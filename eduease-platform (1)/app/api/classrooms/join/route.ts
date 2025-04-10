@@ -1,55 +1,52 @@
-// app/api/classrooms/join/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { ClassroomService } from "@/app/services/ClassroomService";
-import { getCurrentUser } from "@/lib/auth";
+import { NextResponse } from 'next/server';
+import { db } from '@/db';
+import { classrooms, classroomStudents } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    // Get the authenticated user
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { roomCode, userId } = await req.json();
+
+    if (!roomCode || !userId) {
+      return NextResponse.json({ error: "Missing roomCode or userId." }, { status: 400 });
     }
-    
-    // Only students can join classrooms
-    if (user.role !== 'student') {
-      return NextResponse.json({ error: "Only students can join classrooms" }, { status: 403 });
-    }
-    
-    // Parse request body
-    const body = await request.json();
-    const { code } = body;
-    
-    if (!code) {
-      return NextResponse.json({ error: "Classroom code is required" }, { status: 400 });
-    }
-    
-    // Get the classroom by code
-    const classroomService = new ClassroomService();
-    const classroom = await classroomService.getClassroomByCode(code);
-    
+
+    // 1. Find the classroom by room code
+    const classroomResult = await db
+      .select()
+      .from(classrooms)
+      .where(eq(classrooms.roomCode, roomCode));
+
+    const classroom = classroomResult[0];
+
     if (!classroom) {
-      return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
+      return NextResponse.json({ error: "Classroom not found." }, { status: 404 });
     }
-    
-    // Join the classroom
-    await classroomService.joinClassroom(classroom.id, user.id);
-    
-    return NextResponse.json({ 
-      message: "Successfully joined classroom",
-      classroom: {
-        id: classroom.id,
-        name: classroom.name,
-        subject: classroom.subject,
-        color: classroom.color
-      }
+
+    // 2. Check if the student is already in the classroom
+    const existing = await db
+      .select()
+      .from(classroomStudents)
+      .where(
+        eq(classroomStudents.classroomId, classroom.id)
+      ).where(
+        eq(classroomStudents.studentId, userId)
+      );
+
+    if (existing.length > 0) {
+      return NextResponse.json({ message: "Already joined this classroom." }, { status: 200 });
+    }
+
+    // 3. Insert into classroom_students
+    await db.insert(classroomStudents).values({
+      classroomId: classroom.id,
+      studentId: userId,
     });
+
+    return NextResponse.json({ message: "Joined the classroom successfully." }, { status: 200 });
+
   } catch (error) {
     console.error("Error joining classroom:", error);
-    return NextResponse.json(
-      { error: "Failed to join classroom" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });
   }
 }

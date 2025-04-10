@@ -75,14 +75,7 @@ export default function DashboardPage() {
           Logout
         </button>
       </div>
-      
-      {/* Student-specific UI: Classrooms */}
-      {userRole === 'student' && (
-        <div className="mb-8">
-          <StudentClassrooms />
-        </div>
-      )}
-      
+            
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         {/* Left column - Today's Schedule */}
         <div className="md:col-span-2">
@@ -98,10 +91,8 @@ export default function DashboardPage() {
         <div>
           <div className="rounded-lg border bg-card text-card-foreground shadow mb-6">
             <div className="p-6">
-              <Link href="/classroom">
               <h3 className="text-lg font-semibold tracking-tight mb-4">Rooms</h3>
               <Rooms />
-              </Link>
             </div>
           </div>
         </div>
