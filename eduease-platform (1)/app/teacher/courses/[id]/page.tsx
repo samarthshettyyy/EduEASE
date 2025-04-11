@@ -304,12 +304,18 @@ export default function TeacherCourseModulesPage() {
                     </Tabs>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredModules.length === 0 ? (
+                        {loading ? (
+                            <div className="col-span-full text-center py-12 border rounded-lg">
+                                <h3 className="text-lg font-medium mb-2">Loading Modules</h3>
+                            </div>
+                        ) : filteredModules.length === 0 ? (
                             <div className="col-span-full text-center py-12 border rounded-lg">
                                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                 <h3 className="text-lg font-medium mb-2">No modules found</h3>
                                 <p className="text-muted-foreground mb-4">
-                                    {searchQuery ? "Try a different search term" : "Create your first module to get started"}
+                                    {searchQuery
+                                        ? "Try a different search term"
+                                        : "Create your first module to get started"}
                                 </p>
                                 <Button onClick={() => setShowNewModuleDialog(true)}>
                                     <Plus className="h-4 w-4 mr-1" />
