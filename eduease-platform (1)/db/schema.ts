@@ -67,7 +67,6 @@ export const classrooms = mysqlTable("classrooms", {
 
 // Classroom students junction table
 export const classroomStudents = mysqlTable("classroom_students", {
-  id: int("id").autoincrement(), // Removed primaryKey()
   classroomId: int("classroom_id").notNull().references(() => classrooms.id, { onDelete: "cascade" }),
   studentId: int("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   joinedAt: timestamp("joined_at").defaultNow(),
@@ -108,4 +107,14 @@ export const studentDocuments = mysqlTable("student_documents", {
   return {
     studentDocumentIdx: primaryKey({ columns: [table.studentId, table.documentId] }),
   };
+});
+
+// Modules table
+export const modules = mysqlTable("modules", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  classroomId: int("classroom_id").notNull().references(() => classrooms.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });

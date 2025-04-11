@@ -203,8 +203,8 @@ export default function ClassroomPage() {
           filename: selectedDoc.name,
           text: "This is sample content for the selected document. In a real implementation, this would be fetched from your API.",
           sentences: [
-            "This is sample content for the selected document.",
-            "In a real implementation, this would be fetched from your API."
+            "Mitochondria are membrane-bound cell organelles found in the cells of most eukaryotes, including animals, plants, and fungi.",
+            "They generate most of the chemical energy needed to power the cell's biochemical reactions by producing adenosine triphosphate (ATP) through a process called oxidative phosphorylation."
           ],
           importantWords: ["sample", "content", "document", "implementation", "API"],
           extractionStats: {

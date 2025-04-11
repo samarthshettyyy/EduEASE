@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { DoorOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import Link from "next/link"
 
 export function Rooms() {
+  const router = useRouter();
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [roomCode, setRoomCode] = useState("");
@@ -56,6 +59,10 @@ export function Rooms() {
     }
   };
 
+  const openRoom = (id: number) => {
+    router.push(`/classroom/${id}`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center space-x-3 mb-2">
@@ -80,7 +87,7 @@ export function Rooms() {
                 <p className="text-xs text-muted-foreground">{room.subject}</p>
               </div>
             </div>
-            <Button variant="outline" size="sm">Open</Button>
+            <Link href="/classroom"><Button variant="outline" size="sm">Open</Button></Link>
           </div>
         ))}
       </div>

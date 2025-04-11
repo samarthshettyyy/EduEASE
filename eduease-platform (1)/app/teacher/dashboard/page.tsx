@@ -240,7 +240,7 @@ export default function TeacherDashboardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {classrooms.length > 0 ? (
                     classrooms.slice(0, 4).map(classroom => (
-                      <Link href={`/teacher/classrooms/${classroom.id}`} key={classroom.id}>
+                      <Link href={`/teacher/courses/${classroom.id}`} key={classroom.id}>
                         <div className="border rounded-lg p-4 hover:border-primary hover:shadow-sm transition-all cursor-pointer">
                           <div className="flex justify-between items-start mb-2">
                             <Badge variant="outline">{classroom.subject}</Badge>
