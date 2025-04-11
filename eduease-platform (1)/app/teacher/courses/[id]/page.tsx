@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -82,11 +82,12 @@ export default function TeacherCourseModulesPage() {
     const [newModuleTitle, setNewModuleTitle] = useState("")
     const [newModuleDescription, setNewModuleDescription] = useState("")
     const [modules, setModules] = useState([]);
+    const [loading, setLoading] = useState();
 
     // Filter modules based on search query and active tab
     const filteredModules = modules.filter((module) => {
         const matchesSearch =
-            module.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            module.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             module.description.toLowerCase().includes(searchQuery.toLowerCase())
 
         if (activeTab === "all") return matchesSearch
@@ -97,6 +98,34 @@ export default function TeacherCourseModulesPage() {
 
         return matchesSearch
     })
+
+    const fetchModules = async (classroomId) => {
+        try {
+            const response = await fetch(`/api/teacher/modules?classroom_id=${classroomId}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                return data.modules; // Return modules if the request is successful
+            } else {
+                console.error('Error fetching modules:', data.message || 'Unknown error');
+                return []; // Return an empty array if no modules are found
+            }
+        } catch (error) {
+            console.error('Error fetching modules:', error);
+            return []; // Return an empty array if there is a network or server error
+        }
+    };
+
+    useEffect(() => {
+        const loadModules = async () => {
+            setLoading(true);
+            const fetchedModules = await fetchModules(classroomId);
+            setModules(fetchedModules);
+            setLoading(false);
+        };
+
+        loadModules();
+    }, [classroomId]);
 
     // Handle creating a new module
     const handleCreateModule = async () => {
@@ -400,7 +429,7 @@ function ModuleCard({ module, onEdit }: { module: Module; onEdit: () => void }) 
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-lg font-medium">{module.title}</h3>
+                                <h3 className="text-lg font-medium">{module.name}</h3>
                                 {module.isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
                                 {getStatusBadge(module.status)}
                             </div>
@@ -469,7 +498,7 @@ function ModuleCard({ module, onEdit }: { module: Module; onEdit: () => void }) 
                         </div>
                         <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">Updated {module.lastUpdated}</span>
+                            <span className="text-sm">Updated {module.updatedAt}</span>
                         </div>
                     </div>
 
