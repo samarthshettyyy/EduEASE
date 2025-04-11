@@ -303,9 +303,9 @@ export default function TeacherCourseModulesPage() {
                         </TabsList>
                     </Tabs>
 
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {filteredModules.length === 0 ? (
-                            <div className="text-center py-12 border rounded-lg">
+                            <div className="col-span-full text-center py-12 border rounded-lg">
                                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                 <h3 className="text-lg font-medium mb-2">No modules found</h3>
                                 <p className="text-muted-foreground mb-4">
@@ -318,10 +318,15 @@ export default function TeacherCourseModulesPage() {
                             </div>
                         ) : (
                             filteredModules.map((module) => (
-                                <ModuleCard key={module.id} module={module} onEdit={() => handleEditModule(module.id)} />
+                                <ModuleCard
+                                    key={module.id}
+                                    module={module}
+                                    onEdit={() => handleEditModule(module.id)}
+                                />
                             ))
                         )}
                     </div>
+
 
                     {filteredModules.length > 0 && (
                         <div className="mt-8 flex justify-center">
@@ -416,6 +421,8 @@ function ModuleCard({ module, onEdit }: { module: Module; onEdit: () => void }) 
                 return <Badge className="bg-blue-500">Scheduled</Badge>
             case "archived":
                 return <Badge variant="secondary">Archived</Badge>
+            default:
+                return <Badge className="bg-green-500">Published</Badge>
         }
     }
 
@@ -430,10 +437,9 @@ function ModuleCard({ module, onEdit }: { module: Module; onEdit: () => void }) 
                         <div>
                             <div className="flex items-center gap-2">
                                 <h3 className="text-lg font-medium">{module.name}</h3>
-                                {module.isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
                                 {getStatusBadge(module.status)}
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1">{module.description}</p>
+                            <p className="text-l text-muted-foreground mt-1">{module.description}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="outline" size="sm" onClick={onEdit}>
@@ -485,40 +491,6 @@ function ModuleCard({ module, onEdit }: { module: Module; onEdit: () => void }) 
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                        <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{module.chapters} Chapters</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{module.quizzes} Quizzes</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">Updated {module.updatedAt}</span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">Student Progress</span>
-                                <span className="text-sm text-muted-foreground">{module.studentProgress}%</span>
-                            </div>
-                            <Progress value={module.studentProgress} className="h-2" />
-                        </div>
-                        {module.dueDate && (
-                            <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <div>
-                                    <span className="text-sm">Due Date: </span>
-                                    <span className="text-sm font-medium">{module.dueDate}</span>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
