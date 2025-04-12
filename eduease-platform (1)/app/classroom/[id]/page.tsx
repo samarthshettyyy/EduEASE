@@ -107,6 +107,7 @@ export default function ClassroomPage() {
       setModules(fetchedModules);
       console.warn(classroomDocuments);
       setIsLoading(false);
+      setIsLoadingDocuments(false);
     };
 
     loadModules();
@@ -387,7 +388,7 @@ export default function ClassroomPage() {
             {!isLoading && !documentData && (
               <DocumentList
                 documents={modules}
-                isLoading={false}
+                isLoading={isLoadingDocuments}
                 userRole={userRole}
                 onSelectDocument={loadDocument}
                 onMarkAsCompleted={handleMarkAsCompleted}
