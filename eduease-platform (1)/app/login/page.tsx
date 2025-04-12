@@ -23,11 +23,16 @@ const formSchema = z.object({
 export default function LoginPage() {
 
   const router = useRouter()
-  
+
   useEffect(() => {
     const auth = localStorage.getItem('user');
     if (auth) {
-      router.replace('/dashboard');
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user.role == "student") {
+        router.push("/dashboard");
+      } else if (user.role == "teacher") {
+        router.push("/teacher/dashboard");
+      }
     }
   }, [router]);
 
