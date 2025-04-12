@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import DocumentViewer  from "./components/DocumentViewer"
+import DocumentViewer from "../components/DocumentViewer"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, Environment, Box } from "@react-three/drei"
 import {
@@ -25,14 +25,14 @@ import {
 } from "lucide-react"
 
 // Import our split components
-import EmotionDetector from "./components/EmotionDetector"
-import VoiceNavigation from "./components/VoiceNavigation"
-import SignLanguageConverter from "./components/SignLanguageConverter"
-import TelegramBot from "./components/TelegramBot"
-import DocumentList from "./components/DocumentList"
-import ChatRoom from "./components/ChatRoom"
-import VideoCall from "./components/VideoCall"
-import CompletionModal from "./components/CompletionModal"
+import EmotionDetector from "../components/EmotionDetector"
+import VoiceNavigation from "../components/VoiceNavigation"
+import SignLanguageConverter from "../components/SignLanguageConverter"
+import TelegramBot from "../components/TelegramBot"
+import DocumentList from "../components/DocumentList"
+import ChatRoom from "../components/ChatRoom"
+import VideoCall from "../components/VideoCall"
+import CompletionModal from "../components/CompletionModal"
 
 // Define the Model3D component to avoid the undefined error
 function Model3D(props) {
@@ -68,7 +68,8 @@ export default function ClassroomPage() {
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true)
   const [classroomDocuments, setClassroomDocuments] = useState([])
   const [selectedDocument, setSelectedDocument] = useState(null)
-  
+  const [modules, setModules] = useState([]);
+
   // States for document completion modal
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [selectedDocForCompletion, setSelectedDocForCompletion] = useState(null)
@@ -80,17 +81,36 @@ export default function ClassroomPage() {
   const [encouragementMessage, setEncouragementMessage] = useState("")
 
   // Fetch user role and classroom documents on component mount
+  const fetchModules = async (classroomId) => {
+    try {
+      const response = await fetch(`/api/teacher/modules?classroom_id=${classroomId}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        return data.modules; // Return modules if the request is successful
+      } else {
+        console.error('Error fetching modules:', data.message || 'Unknown error');
+        return []; // Return an empty array if no modules are found
+      }
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+      return []; // Return an empty array if there is a network or server error
+    }
+  };
+
   useEffect(() => {
-    // Fetch logic here...
-    // Using setTimeout to simulate API call for the demo
-    setTimeout(() => {
-      setIsLoadingDocuments(false)
-      setClassroomDocuments([
-        { id: 1, name: "Cell Structure Introduction.pdf", uploadedBy: "Ms. Johnson", uploadDate: "2025-04-02", viewed: false, completed: false },
-        { id: 2, name: "Biology Chapter 3 Notes.docx", uploadedBy: "Mr. Smith", uploadDate: "2025-04-05", viewed: true, completed: false }
-      ])
-    }, 1000)
-  }, [classroomId])
+    const loadModules = async () => {
+      setIsLoading(true);
+      const fetchedModules = await fetchModules(classroomId);
+      console.warn(fetchedModules);
+      setClassroomDocuments(fetchedModules);
+      setModules(fetchedModules);
+      console.warn(classroomDocuments);
+      setIsLoading(false);
+    };
+
+    loadModules();
+  }, [classroomId]);
 
   const handleVoiceCommand = (cmd) => {
     if (cmd.includes("read aloud")) {
@@ -174,7 +194,7 @@ export default function ClassroomPage() {
           viewed: false,
           completed: false
         };
-        
+
         setClassroomDocuments([newDocument, ...classroomDocuments]);
         setIsLoading(false);
         setActiveTab("content");
@@ -190,12 +210,12 @@ export default function ClassroomPage() {
   const loadDocument = async (documentId) => {
     setIsLoading(true);
     setProcessingError(null);
-    
+
     try {
       // Find the document in the classroom documents
       const selectedDoc = classroomDocuments.find(doc => doc.id === documentId);
       setSelectedDocument(selectedDoc);
-      
+
       // Mock document content
       setTimeout(() => {
         setDocumentData({
@@ -235,19 +255,19 @@ export default function ClassroomPage() {
   // Handle submitting document completion
   const submitDocumentCompletion = async () => {
     if (!selectedDocForCompletion) return;
-    
+
     try {
       // Mock API call
       setTimeout(() => {
         // Update local state
-        setClassroomDocuments(docs => 
-          docs.map(doc => 
-            doc.id === selectedDocForCompletion.id 
-              ? { ...doc, viewed: true, completed: true } 
+        setClassroomDocuments(docs =>
+          docs.map(doc =>
+            doc.id === selectedDocForCompletion.id
+              ? { ...doc, viewed: true, completed: true }
               : doc
           )
         );
-        
+
         // Reset and close modal
         setShowCompletionModal(false);
         setSelectedDocForCompletion(null);
@@ -301,7 +321,7 @@ export default function ClassroomPage() {
                 </Button>
               </div>
             )}
-            
+
             <Select value={currentLanguage} onValueChange={setCurrentLanguage}>
               <SelectTrigger className="w-[130px]">
                 <Globe className="mr-2 h-4 w-4" />
@@ -349,7 +369,7 @@ export default function ClassroomPage() {
                 </Button>
               </div>
             </div>
-            
+
             {encouragementMessage && (
               <div className="bg-primary/10 text-primary rounded-lg p-3 text-sm">{encouragementMessage}</div>
             )}
@@ -366,8 +386,8 @@ export default function ClassroomPage() {
             {/* Classroom Documents Section */}
             {!isLoading && !documentData && (
               <DocumentList
-                documents={classroomDocuments}
-                isLoading={isLoadingDocuments}
+                documents={modules}
+                isLoading={false}
                 userRole={userRole}
                 onSelectDocument={loadDocument}
                 onMarkAsCompleted={handleMarkAsCompleted}
@@ -398,7 +418,7 @@ export default function ClassroomPage() {
                     </Card>
                   ) : documentData ? (
                     // When document data is available, show the DocumentViewer
-                    <DocumentViewer 
+                    <DocumentViewer
                       sessionId={documentData.sessionId}
                       filename={documentData.filename}
                       text={documentData.text}
@@ -415,7 +435,7 @@ export default function ClassroomPage() {
                     <div className="p-6">
                       <h3 className="text-lg font-medium mb-2">3D Cell Model</h3>
                       <p className="text-sm text-muted-foreground mb-4">Interact with a 3D model of a cell</p>
-                      
+
                       <div className="aspect-video bg-muted rounded-lg overflow-hidden">
                         <Canvas>
                           <ambientLight intensity={0.5} />
@@ -440,7 +460,7 @@ export default function ClassroomPage() {
             <VoiceNavigation onVoiceCommand={handleVoiceCommand} />
             <SignLanguageConverter />
             <TelegramBot />
-            
+
             {/* Conditionally rendered components */}
             {showChat && <ChatRoom onClose={() => setShowChat(false)} />}
             {showVideo && <VideoCall onClose={() => setShowVideo(false)} />}

@@ -250,6 +250,7 @@ export default function TeacherDashboardPage() {
                             </div>
                           </div>
                           <h3 className="font-semibold text-base mb-1">{classroom.name}</h3>
+                          <h4 className="text-gray-400 mb-1">{classroom.description}</h4>
                           <div className="flex justify-between text-sm mt-3">
                             <span className="text-muted-foreground">
                               {classroom.code && (

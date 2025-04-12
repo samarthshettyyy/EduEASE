@@ -87,7 +87,7 @@ export function Rooms() {
                 <p className="text-xs text-muted-foreground">{room.subject}</p>
               </div>
             </div>
-            <Link href="/classroom"><Button variant="outline" size="sm">Open</Button></Link>
+            <Link href={`/classroom/${room.id}`}><Button variant="outline" size="sm">Open</Button></Link>
           </div>
         ))}
       </div>
