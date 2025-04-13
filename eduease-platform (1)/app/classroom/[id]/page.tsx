@@ -459,14 +459,13 @@ export default function ClassroomPage() {
 
           {/* Sidebar - 1/3 width on desktop */}
           <div className="space-y-6">
+            {/* Conditionally rendered components */}
+            {showChat && <ChatRoom onClose={() => setShowChat(false)} />}
+            {showVideo && <VideoCall userId={user.id} onClose={() => setShowVideo(false)} />}
             <EmotionDetector onEmotionDetected={handleEmotionDetected} />
             <VoiceNavigation onVoiceCommand={handleVoiceCommand} />
             <SignLanguageConverter />
             <TelegramBot />
-
-            {/* Conditionally rendered components */}
-            {showChat && <ChatRoom onClose={() => setShowChat(false)} />}
-            {showVideo && <VideoCall userId={user.id} onClose={() => setShowVideo(false)} />}
           </div>
         </div>
       </main>

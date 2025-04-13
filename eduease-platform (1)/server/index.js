@@ -71,6 +71,18 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('ice-candidate', candidate);
     });
 
+    // Handle transcript messages
+    socket.on('transcript-message', ({ transcript, roomId }) => {
+        console.log(`Relaying transcript in room ${roomId}`);
+        socket.to(roomId).emit('transcript-message', { transcript });
+    });
+
+    // Handle subtitles toggle
+    socket.on('subtitles-toggle', ({ enabled, roomId }) => {
+        console.log(`Relaying subtitles toggle (${enabled}) in room ${roomId}`);
+        socket.to(roomId).emit('subtitles-toggle', { enabled });
+    });
+
     // Handle user leaving
     socket.on('leave-room', ({ roomId }) => {
         handleUserLeaving(socket, roomId);

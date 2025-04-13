@@ -1,16 +1,13 @@
-// FRONTEND FIX: VideoCall.tsx
-// Focus on fixing the video display issues
-
 "use client"
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, MicOff, Video, VideoOff, X, PhoneOff, Copy, Phone } from "lucide-react"
+import { Mic, MicOff, Video, VideoOff, X, PhoneOff, Copy, Phone, Subtitles } from "lucide-react"
 import { io, Socket } from "socket.io-client"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogContent,
@@ -19,10 +16,89 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 interface VideoCallProps {
   onClose: () => void;
   userId: string; // Current user's ID
+}
+
+// Speech recognition service
+class SpeechRecognitionService {
+  recognition: SpeechRecognition | null = null;
+  isSupported: boolean = false;
+  isListening: boolean = false;
+  onTranscriptUpdate: (transcript: string) => void;
+
+  constructor(onTranscriptUpdate: (transcript: string) => void) {
+    this.onTranscriptUpdate = onTranscriptUpdate;
+
+    // Check if browser supports speech recognition
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      this.isSupported = true;
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      this.recognition = new SpeechRecognition();
+      this.setupRecognition();
+    }
+  }
+
+  setupRecognition() {
+    if (!this.recognition) return;
+
+    this.recognition.continuous = true;
+    this.recognition.interimResults = true;
+
+    this.recognition.onresult = (event) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      this.onTranscriptUpdate(finalTranscript || interimTranscript);
+    };
+
+    this.recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+    };
+  }
+
+  start() {
+    if (!this.recognition || !this.isSupported) return;
+
+    try {
+      this.recognition.start();
+      this.isListening = true;
+    } catch (error) {
+      console.error('Failed to start speech recognition:', error);
+    }
+  }
+
+  stop() {
+    if (!this.recognition || !this.isSupported) return;
+
+    try {
+      this.recognition.stop();
+      this.isListening = false;
+    } catch (error) {
+      console.error('Failed to stop speech recognition:', error);
+    }
+  }
+
+  toggle(active: boolean) {
+    if (active && !this.isListening) {
+      this.start();
+    } else if (!active && this.isListening) {
+      this.stop();
+    }
+  }
 }
 
 export function VideoCall({ onClose, userId }: VideoCallProps) {
@@ -38,54 +114,61 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
   const [showCallSetup, setShowCallSetup] = useState(true)
   const [copySuccess, setCopySuccess] = useState(false)
   const [showAlert, setShowAlert] = useState(false)
-  const [alertMessage, setAlertMessage] = useState({title: "", description: ""})
+  const [alertMessage, setAlertMessage] = useState({ title: "", description: "" })
   const [connectionState, setConnectionState] = useState<string>("")
-  
+
+  // Subtitle related states
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false)
+  const [localTranscript, setLocalTranscript] = useState("")
+  const [remoteTranscript, setRemoteTranscript] = useState("")
+  const [isSubtitlesSupported, setIsSubtitlesSupported] = useState(false)
+
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const socketRef = useRef<Socket | null>(null)
-  
+  const speechRecognitionRef = useRef<SpeechRecognitionService | null>(null)
+
   // Initialize socket connection and local stream
   useEffect(() => {
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_SERVER || "http://localhost:3001")
     socketRef.current = socket
-    
+
     // Socket event listeners
     socket.on("connect", () => {
       console.log("Connected to signaling server")
     })
-    
+
     socket.on("connect_error", (error) => {
       console.error("Socket connection error:", error)
       setConnectionError("Failed to connect to signaling server")
     })
-    
+
     socket.on("user-joined", (remoteUserId) => {
       console.log(`User ${remoteUserId} joined the room`)
       handleUserJoined()
     })
-    
+
     socket.on("offer", async (offer) => {
       console.log("Received offer:", offer)
       await handleOffer(offer)
     })
-    
+
     socket.on("answer", (answer) => {
       console.log("Received answer:", answer)
       handleAnswer(answer)
     })
-    
+
     socket.on("ice-candidate", (candidate) => {
       console.log("Received ICE candidate:", candidate)
       handleIceCandidate(candidate)
     })
-    
+
     socket.on("user-left", () => {
       console.log("Remote user left")
       handleUserLeft()
     })
-    
+
     socket.on("room-full", () => {
       setAlertMessage({
         title: "Room is full",
@@ -94,7 +177,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       setShowAlert(true)
       setIsWaiting(false)
     })
-    
+
     socket.on("room-not-found", () => {
       setAlertMessage({
         title: "Room not found",
@@ -103,10 +186,23 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       setShowAlert(true)
       setIsWaiting(false)
     })
-    
+
+    // Add transcript message handler
+    socket.on("transcript-message", (message) => {
+      setRemoteTranscript(message.transcript);
+
+      // Auto-clear remote transcript after 5 seconds
+      setTimeout(() => {
+        setRemoteTranscript("");
+      }, 5000);
+    });
+
     // Initialize media devices
     initLocalStream()
-    
+
+    // Initialize speech recognition
+    checkSpeechRecognitionSupport();
+
     // Cleanup on component unmount
     return () => {
       cleanup()
@@ -120,14 +216,60 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream, localVideoRef.current]);
-  
+
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
       console.log("Set remote video stream:", remoteStream.id);
     }
   }, [remoteStream, remoteVideoRef.current]);
-  
+
+  // Handle subtitles toggle
+  useEffect(() => {
+    if (!speechRecognitionRef.current || !isCallActive) return;
+
+    speechRecognitionRef.current.toggle(subtitlesEnabled);
+
+    // Broadcast transcript toggle to other participant
+    socketRef.current?.emit("subtitles-toggle", {
+      enabled: subtitlesEnabled,
+      roomId: String(currentRoomId)
+    });
+
+  }, [subtitlesEnabled, isCallActive]);
+
+  // Cleanup transcript when call ends
+  useEffect(() => {
+    if (!isCallActive) {
+      setLocalTranscript("");
+      setRemoteTranscript("");
+    }
+  }, [isCallActive]);
+
+  const checkSpeechRecognitionSupport = () => {
+    const isSupported = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+    setIsSubtitlesSupported(isSupported);
+
+    if (isSupported) {
+      speechRecognitionRef.current = new SpeechRecognitionService((transcript) => {
+        setLocalTranscript(transcript);
+
+        // Send transcript to other participant
+        if (isCallActive && subtitlesEnabled) {
+          socketRef.current?.emit("transcript-message", {
+            transcript,
+            roomId: String(currentRoomId)
+          });
+        }
+
+        // Auto-clear local transcript after 5 seconds of inactivity
+        setTimeout(() => {
+          setLocalTranscript("");
+        }, 5000);
+      });
+    }
+  };
+
   const initLocalStream = async () => {
     try {
       console.log("Initializing local media stream...");
@@ -135,10 +277,10 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
         video: true,
         audio: true
       });
-      
+
       console.log("Local stream obtained:", stream.id);
       setLocalStream(stream);
-      
+
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
         console.log("Set local video element source");
@@ -150,7 +292,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       setConnectionError("Failed to access camera/microphone. Please ensure you have given permission.");
     }
   }
-  
+
   const initPeerConnection = () => {
     console.log("Initializing peer connection...");
     // STUN/TURN servers for NAT traversal
@@ -161,10 +303,10 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
         // Add TURN servers for production
       ]
     };
-    
+
     const pc = new RTCPeerConnection(iceServers);
     peerConnectionRef.current = pc;
-    
+
     // Add local tracks to peer connection
     if (localStream) {
       console.log("Adding local tracks to peer connection");
@@ -174,7 +316,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
     } else {
       console.error("No local stream available when initializing peer connection");
     }
-    
+
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -185,12 +327,12 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
         });
       }
     };
-    
+
     // Handle connection state changes
     pc.onconnectionstatechange = () => {
       console.log("Connection state changed:", pc.connectionState);
       setConnectionState(pc.connectionState);
-      
+
       if (pc.connectionState === "connected") {
         console.log("WebRTC connection established successfully!");
         setIsCallActive(true);
@@ -201,28 +343,28 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
         endCall();
       }
     };
-    
+
     // Debug ice connection state
     pc.oniceconnectionstatechange = () => {
       console.log("ICE connection state:", pc.iceConnectionState);
     };
-    
+
     // Handle receiving remote tracks
     pc.ontrack = (event) => {
       console.log("Received remote track!", event.streams.length);
       if (event.streams && event.streams[0]) {
         const remoteMediaStream = event.streams[0];
         console.log("Setting remote stream:", remoteMediaStream.id);
-        
+
         setRemoteStream(remoteMediaStream);
-        
+
         if (remoteVideoRef.current) {
           console.log("Setting remote video element source");
           remoteVideoRef.current.srcObject = remoteMediaStream;
         } else {
           console.warn("Remote video ref not available");
         }
-        
+
         setIsCallActive(true);
         setIsWaiting(false);
         setShowCallSetup(false);
@@ -230,47 +372,47 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
         console.error("No remote stream available in track event");
       }
     };
-    
+
     return pc;
   };
-  
+
   const startCall = async () => {
     try {
       setIsWaiting(true);
-      
+
       // Join room
       console.log("Joining room as initiator:", currentRoomId);
-      socketRef.current?.emit("join-room", { 
-        roomId: String(currentRoomId), 
-        userId 
+      socketRef.current?.emit("join-room", {
+        roomId: String(currentRoomId),
+        userId
       });
-      
+
       // Initialize peer connection
       const pc = initPeerConnection();
-      
+
       // Create and send offer
       console.log("Creating offer...");
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
       });
-      
+
       console.log("Setting local description...");
       await pc.setLocalDescription(offer);
-      
+
       console.log("Sending offer to signaling server");
       socketRef.current?.emit("offer", {
         offer,
         roomId: String(currentRoomId)
       });
-      
+
     } catch (error) {
       console.error("Error starting call:", error);
       setConnectionError("Failed to establish call connection");
       setIsWaiting(false);
     }
   };
-  
+
   const joinCall = async () => {
     try {
       if (!joinRoomId.trim()) {
@@ -281,27 +423,27 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
         setShowAlert(true);
         return;
       }
-      
+
       setIsWaiting(false);
       setCurrentRoomId(joinRoomId);
-      
+
       // Join room
       console.log("Joining room as participant:", joinRoomId);
-      socketRef.current?.emit("join-room", { 
-        roomId: String(joinRoomId), 
-        userId 
+      socketRef.current?.emit("join-room", {
+        roomId: String(joinRoomId),
+        userId
       });
-      
+
       // Initialize peer connection (but don't create offer)
       initPeerConnection();
-      
+
     } catch (error) {
       console.error("Error joining call:", error);
       setConnectionError("Failed to join call");
       setIsWaiting(false);
     }
   };
-  
+
   const handleUserJoined = async () => {
     try {
       console.log("Remote user joined, checking peer connection");
@@ -313,7 +455,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       console.error("Error handling user joined:", error);
     }
   };
-  
+
   const handleOffer = async (offer: RTCSessionDescriptionInit) => {
     try {
       console.log("Processing received offer");
@@ -321,31 +463,31 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       if (!peerConnectionRef.current) {
         initPeerConnection();
       }
-      
+
       const pc = peerConnectionRef.current!;
-      
+
       // Set remote description (the offer)
       console.log("Setting remote description from offer");
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      
+
       // Create and send answer
       console.log("Creating answer...");
       const answer = await pc.createAnswer();
-      
+
       console.log("Setting local description from answer");
       await pc.setLocalDescription(answer);
-      
+
       console.log("Sending answer to signaling server");
       socketRef.current?.emit("answer", {
         answer,
         roomId: String(currentRoomId)
       });
-      
+
     } catch (error) {
       console.error("Error handling offer:", error);
     }
   };
-  
+
   const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
     try {
       console.log("Processing received answer");
@@ -360,7 +502,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       console.error("Error handling answer:", error);
     }
   };
-  
+
   const handleIceCandidate = async (candidate: RTCIceCandidateInit) => {
     try {
       console.log("Adding received ICE candidate");
@@ -374,43 +516,53 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       console.error("Error handling ICE candidate:", error);
     }
   };
-  
+
   const handleUserLeft = () => {
     console.log("Handling remote user left event");
     setRemoteStream(null);
     setIsCallActive(false);
     setShowCallSetup(true);
-    
+
     // Create a new peer connection for next call
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
+
+    // Stop speech recognition
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+    }
   };
-  
+
   const endCall = () => {
     console.log("Ending call");
     // Notify server
     socketRef.current?.emit("leave-room", { roomId: String(currentRoomId) });
-    
+
     // Reset states
     setIsCallActive(false);
     setIsWaiting(false);
     setShowCallSetup(true);
-    
+
     // Close connection
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
-    
+
     // Clear remote stream
     if (remoteStream) {
       remoteStream.getTracks().forEach(track => track.stop());
       setRemoteStream(null);
     }
+
+    // Stop speech recognition
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+    }
   };
-  
+
   const toggleMute = () => {
     if (localStream) {
       const audioTracks = localStream.getAudioTracks();
@@ -420,7 +572,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       setIsMuted(!isMuted);
     }
   };
-  
+
   const toggleCamera = () => {
     if (localStream) {
       const videoTracks = localStream.getVideoTracks();
@@ -430,33 +582,42 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       setIsCameraOff(!isCameraOff);
     }
   };
-  
+
+  const toggleSubtitles = () => {
+    setSubtitlesEnabled(!subtitlesEnabled);
+  };
+
   const cleanup = () => {
     // Stop local media tracks
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop());
     }
-    
+
     // Stop remote media tracks
     if (remoteStream) {
       remoteStream.getTracks().forEach(track => track.stop());
     }
-    
+
     // Close RTCPeerConnection
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
     }
-    
+
+    // Stop speech recognition
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+    }
+
     // Leave room
     socketRef.current?.emit("leave-room", { roomId: String(currentRoomId) });
   };
-  
+
   // Handle component unmount or closing
   const handleClose = () => {
     cleanup();
     onClose();
   };
-  
+
   // Copy room ID to clipboard
   const copyRoomId = () => {
     navigator.clipboard.writeText(currentRoomId)
@@ -466,7 +627,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
       })
       .catch(err => console.error("Failed to copy room ID:", err));
   };
-  
+
   return (
     <Card className="w-full max-w-lg">
       <CardHeader className="pb-2">
@@ -483,13 +644,13 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
             {connectionError}
           </div>
         )}
-        
+
         {connectionState && (
           <div className="mb-2 text-xs text-muted-foreground">
             Connection state: {connectionState}
           </div>
         )}
-        
+
         {/* Call Setup UI */}
         {showCallSetup && !isCallActive && (
           <div className="mb-4">
@@ -498,19 +659,19 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
                 <TabsTrigger value="create">Create Call</TabsTrigger>
                 <TabsTrigger value="join">Join Call</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="create" className="mt-2">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Input 
-                      value={currentRoomId} 
-                      readOnly 
+                    <Input
+                      value={currentRoomId}
+                      readOnly
                       className="flex-1"
                       onClick={(e) => e.currentTarget.select()}
                     />
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={copyRoomId}
                     >
                       {copySuccess ? "Copied!" : <Copy className="h-4 w-4" />}
@@ -519,9 +680,9 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
                   <div className="text-sm text-muted-foreground">
                     Share this Room ID with someone to join your call.
                   </div>
-                  <Button 
-                    className="w-full" 
-                    onClick={startCall} 
+                  <Button
+                    className="w-full"
+                    onClick={startCall}
                     disabled={isWaiting}
                   >
                     {isWaiting ? (
@@ -531,26 +692,26 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
                       </>
                     ) : (
                       <>
-                        <Phone className="h-4 w-4 mr-2" /> 
+                        <Phone className="h-4 w-4 mr-2" />
                         Start Call
                       </>
                     )}
                   </Button>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="join" className="mt-2">
                 <div className="space-y-4">
                   <div>
-                    <Input 
-                      placeholder="Enter Room ID to join" 
+                    <Input
+                      placeholder="Enter Room ID to join"
                       value={joinRoomId}
                       onChange={(e) => setJoinRoomId(e.target.value)}
                     />
                   </div>
-                  <Button 
-                    className="w-full" 
-                    onClick={joinCall} 
+                  <Button
+                    className="w-full"
+                    onClick={joinCall}
                     disabled={isWaiting}
                   >
                     {isWaiting ? (
@@ -560,7 +721,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
                       </>
                     ) : (
                       <>
-                        <Phone className="h-4 w-4 mr-2" /> 
+                        <Phone className="h-4 w-4 mr-2" />
                         Join Call
                       </>
                     )}
@@ -570,31 +731,45 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
             </Tabs>
           </div>
         )}
-        
+
         {/* Video display */}
         <div className="grid grid-cols-1 gap-2 mb-3">
           {isCallActive ? (
             <div className="relative">
               {/* Main remote video */}
               <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                <video 
+                <video
                   ref={remoteVideoRef}
                   autoPlay={true}
                   playsInline={true}
                   className="w-full h-full object-cover"
                 />
+
+                {/* Remote subtitles overlay */}
+                {subtitlesEnabled && remoteTranscript && (
+                  <div className="absolute bottom-16 left-0 right-0 p-2 bg-black bg-opacity-50 text-white text-center">
+                    {remoteTranscript}
+                  </div>
+                )}
               </div>
-              
+
               {/* PiP local video */}
               <div className="absolute bottom-2 right-2 w-1/4 aspect-video bg-muted rounded-lg overflow-hidden border-2 border-background shadow-md">
-                <video 
+                <video
                   ref={localVideoRef}
                   autoPlay={true}
                   playsInline={true}
                   muted={true}
                   className="w-full h-full object-cover"
                 />
+
               </div>
+              {/* Local subtitles overlay - smaller version */}
+              {subtitlesEnabled && localTranscript && (
+                <div className="absolute bottom-0 left-0 right-0 p-1 bg-black bg-opacity-50 text-white text-xs text-center truncate">
+                  {localTranscript}
+                </div>
+              )}
             </div>
           ) : (
             <div className="aspect-video bg-muted rounded-lg overflow-hidden">
@@ -606,7 +781,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
                   </div>
                 </div>
               ) : (
-                <video 
+                <video
                   ref={localVideoRef}
                   autoPlay={true}
                   playsInline={true}
@@ -617,11 +792,26 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
             </div>
           )}
         </div>
-        
+
+        {/* Subtitles toggle */}
+        {isCallActive && isSubtitlesSupported && (
+          <div className="flex items-center justify-between mb-3 p-2 bg-muted rounded-md">
+            <div className="flex items-center space-x-2">
+              <Subtitles className="h-4 w-4" />
+              <Label htmlFor="subtitle-toggle">Live Subtitles</Label>
+            </div>
+            <Switch
+              id="subtitle-toggle"
+              checked={subtitlesEnabled}
+              onCheckedChange={toggleSubtitles}
+            />
+          </div>
+        )}
+
         {/* Call controls */}
         <div className="flex justify-center gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={toggleMute}
           >
@@ -632,9 +822,9 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
             )}
             {isMuted ? "Unmute" : "Mute"}
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             size="sm"
             onClick={toggleCamera}
           >
@@ -645,10 +835,10 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
             )}
             {isCameraOff ? "Start Video" : "Stop Video"}
           </Button>
-          
+
           {isCallActive || isWaiting ? (
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               size="sm"
               onClick={endCall}
             >
@@ -656,8 +846,8 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
               End Call
             </Button>
           ) : !showCallSetup ? (
-            <Button 
-              variant="default" 
+            <Button
+              variant="default"
               size="sm"
               onClick={() => setShowCallSetup(true)}
             >
@@ -667,7 +857,7 @@ export function VideoCall({ onClose, userId }: VideoCallProps) {
           ) : null}
         </div>
       </CardContent>
-      
+
       {/* Alerts */}
       <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
         <AlertDialogContent>
