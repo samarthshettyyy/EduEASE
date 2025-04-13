@@ -64,7 +64,7 @@ export function DocumentList({
                   <BookOpen className="h-5 w-5 text-primary" />
                   <div>
                     <p className="font-medium">{doc.name}</p>
-                    <p className="text-xs text-muted-foreground">Uploaded by {doc.uploadedBy} on {doc.uploadDate}</p>
+                    <p className="text-xs text-muted-foreground">{doc.description}</p>
                   </div>
                 </div>
 

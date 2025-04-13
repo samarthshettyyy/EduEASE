@@ -70,6 +70,8 @@ export default function ClassroomPage() {
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [modules, setModules] = useState([]);
 
+  const user = JSON.parse(localStorage.getItem('user'));
+
   // States for document completion modal
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [selectedDocForCompletion, setSelectedDocForCompletion] = useState(null)
@@ -464,7 +466,7 @@ export default function ClassroomPage() {
 
             {/* Conditionally rendered components */}
             {showChat && <ChatRoom onClose={() => setShowChat(false)} />}
-            {showVideo && <VideoCall onClose={() => setShowVideo(false)} />}
+            {showVideo && <VideoCall userId={user.id} onClose={() => setShowVideo(false)} />}
           </div>
         </div>
       </main>
