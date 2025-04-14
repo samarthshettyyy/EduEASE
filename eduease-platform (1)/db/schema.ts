@@ -239,3 +239,11 @@ export const studentDocuments = mysqlTable("student_documents", {
     studentDocumentIdx: primaryKey({ columns: [table.studentId, table.documentId] }),
   };
 });
+
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  classroomId: int("classroom_id").notNull(),
+  userId: int("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
