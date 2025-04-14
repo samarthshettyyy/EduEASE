@@ -347,69 +347,86 @@ export default function TeacherCourseModulesPage() {
 
             {/* New Module Dialog */}
             <Dialog open={showNewModuleDialog} onOpenChange={setShowNewModuleDialog}>
-                <DialogContent className="sm:max-w-[525px]">
-                    <DialogHeader>
-                        <DialogTitle>Create New Module</DialogTitle>
-                        <DialogDescription>
-                            Add a new module to your course. You can add chapters and content after creating the module.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="module-title">Module Title</Label>
-                            <Input
-                                id="module-title"
-                                placeholder="e.g., Introduction to Cell Biology"
-                                value={newModuleTitle}
-                                onChange={(e) => setNewModuleTitle(e.target.value)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="module-description">Description</Label>
-                            <Textarea
-                                id="module-description"
-                                placeholder="Brief description of the module content and learning objectives"
-                                value={newModuleDescription}
-                                onChange={(e) => setNewModuleDescription(e.target.value)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Module Settings</Label>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Switch id="lock-module" />
-                                    <Label htmlFor="lock-module">Lock module (requires prerequisites)</Label>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Content Import (Optional)</Label>
-                            <div className="flex gap-2">
-                                <Select>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Import from existing module" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">None (Start from scratch)</SelectItem>
-                                        <SelectItem value="cell-theory">Cell Theory</SelectItem>
-                                        <SelectItem value="cell-structure">Cell Structure</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button variant="outline" size="icon">
-                                    <Upload className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowNewModuleDialog(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleCreateModule} disabled={!newModuleTitle.trim()}>
-                            Create Module
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
+            <DialogContent className="sm:max-w-[525px]">
+  <DialogHeader>
+    <DialogTitle>Create New Module</DialogTitle>
+    <DialogDescription>
+      Add a new module to your course. You can add chapters and content after creating the module.
+    </DialogDescription>
+  </DialogHeader>
+  <div className="grid gap-4 py-4">
+    <div className="grid gap-2">
+      <Label htmlFor="module-title">Module Title</Label>
+      <Input
+        id="module-title"
+        placeholder="e.g., Introduction to Cell Biology"
+        value={newModuleTitle}
+        onChange={(e) => setNewModuleTitle(e.target.value)}
+      />
+    </div>
+    <div className="grid gap-2">
+      <Label htmlFor="module-description">Description</Label>
+      <Textarea
+        id="module-description"
+        placeholder="Brief description of the module content and learning objectives"
+        value={newModuleDescription}
+        onChange={(e) => setNewModuleDescription(e.target.value)}
+      />
+    </div>
+    <div className="grid gap-2">
+      <Label>Upload Content PDF</Label>
+      <Input type="file" accept="application/pdf" />
+    </div>
+    <div className="grid gap-2">
+      <Label>Upload Interactive PDF</Label>
+      <Input type="file" accept="application/pdf" />
+    </div>
+    <div className="grid gap-2">
+      <Label>Upload 3D Models PDF</Label>
+      <Input type="file" accept="application/pdf" />
+    </div>
+    <div className="grid gap-2">
+      <Label>Upload Quiz PDF</Label>
+      <Input type="file" accept="application/pdf" />
+    </div>
+    <div className="grid gap-2">
+      <Label>Module Settings</Label>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Switch id="lock-module" />
+          <Label htmlFor="lock-module">Lock module (requires prerequisites)</Label>
+        </div>
+      </div>
+    </div>
+    <div className="grid gap-2">
+      <Label>Content Import (Optional)</Label>
+      <div className="flex gap-2">
+        <Select>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Import from existing module" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None (Start from scratch)</SelectItem>
+            <SelectItem value="cell-theory">Cell Theory</SelectItem>
+            <SelectItem value="cell-structure">Cell Structure</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="icon">
+          <Upload className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  </div>
+  <DialogFooter>
+    <Button variant="outline" onClick={() => setShowNewModuleDialog(false)}>
+      Cancel
+    </Button>
+    <Button onClick={handleCreateModule} disabled={!newModuleTitle.trim()}>
+      Create Module
+    </Button>
+  </DialogFooter>
+</DialogContent>
+
             </Dialog>
         </div>
     )
