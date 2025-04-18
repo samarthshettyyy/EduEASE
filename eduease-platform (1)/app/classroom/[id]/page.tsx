@@ -303,6 +303,32 @@ export default function ClassroomPage() {
     fetchClassroom();
   }, [classroomId]);
 
+  useEffect(() => {
+    const addGoogleTranslateScript = () => {
+      if (document.getElementById('google-translate-script')) return
+    
+      const script = document.createElement('script')
+      script.id = 'google-translate-script'
+      script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit'
+      script.async = true
+      document.body.appendChild(script)
+    
+      window.googleTranslateElementInit = () => {
+        if (!document.getElementById('google_translate_element')?.innerHTML) {
+          new window.google.translate.TranslateElement(
+            {
+              pageLanguage: 'en',
+              includedLanguages: 'en,fr,es,de,hi,gu,ja',
+              layout: window.google.translate.TranslateElement.InlineLayout.HORIZONTAL,
+            },
+            'google_translate_element'
+          )
+        }
+      }
+    }
+    addGoogleTranslateScript()
+  }, [])
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b bg-background">
@@ -351,22 +377,10 @@ export default function ClassroomPage() {
               </div>
             )}
 
-            <Select value={currentLanguage} onValueChange={setCurrentLanguage}>
-              <SelectTrigger className="w-[130px]">
-                <Globe className="mr-2 h-4 w-4" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="english">English</SelectItem>
-                <SelectItem value="spanish">Spanish</SelectItem>
-                <SelectItem value="french">French</SelectItem>
-                <SelectItem value="german">German</SelectItem>
-                <SelectItem value="chinese">Chinese</SelectItem>
-              </SelectContent>
-            </Select>
             <Button variant="outline" onClick={() => setDocumentData(null)}>
               <FileText />Modules
             </Button>
+            <Button variant="outline"><div id="google_translate_element"></div></Button>
             <Button variant="outline" size="icon" onClick={() => setShowChat(!showChat)}>
               <MessageSquare className="h-4 w-4" />
             </Button>
