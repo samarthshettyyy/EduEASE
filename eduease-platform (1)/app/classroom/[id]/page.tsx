@@ -21,7 +21,8 @@ import {
   MessageSquare,
   Upload,
   Video,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from "lucide-react"
 
 // Import our split components
@@ -33,6 +34,7 @@ import DocumentList from "../components/DocumentList"
 import ChatRoom from "../components/ChatRoom"
 import VideoCall from "../components/VideoCall"
 import CompletionModal from "../components/CompletionModal"
+import AccessibilityMenu from "../components/AccessibilityMenu"
 
 // Define the Model3D component to avoid the undefined error
 function Model3D(props) {
@@ -328,6 +330,9 @@ const handleEmotionDetected = (emotion: string) => {
                 <SelectItem value="chinese">Chinese</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant="outline" onClick={() => setDocumentData(null)}>
+              <FileText />Modules
+            </Button>
             <Button variant="outline" size="icon" onClick={() => setShowChat(!showChat)}>
               <MessageSquare className="h-4 w-4" />
             </Button>
@@ -480,6 +485,8 @@ const handleEmotionDetected = (emotion: string) => {
           </p>
         </div>
       </footer>
+
+      <AccessibilityMenu />
     </div>
   )
 }

@@ -38,7 +38,7 @@ export function DocumentList({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Classroom Documents</CardTitle>
+        <CardTitle>Modules</CardTitle>
         <CardDescription>
           {userRole === "teacher" 
             ? "Documents you've shared with students" 
