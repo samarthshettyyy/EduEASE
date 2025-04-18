@@ -22,7 +22,8 @@ import {
   Upload,
   Video,
   AlertCircle,
-  FileText
+  FileText,
+  CloudCog
 } from "lucide-react"
 
 // Import our split components
@@ -51,6 +52,16 @@ function Model3D(props) {
       {/* Other cell organelles could be added here */}
     </group>
   );
+}
+
+interface Classroom {
+  id: number;
+  name: string;
+  description: string;
+  subject: string;
+  room_code: string;
+  created_at: string;
+  teacher_name: string;
 }
 
 // Main Classroom Page Component
@@ -106,10 +117,8 @@ export default function ClassroomPage() {
     const loadModules = async () => {
       setIsLoading(true);
       const fetchedModules = await fetchModules(classroomId);
-      console.warn(fetchedModules);
       setClassroomDocuments(fetchedModules);
       setModules(fetchedModules);
-      console.warn(classroomDocuments);
       setIsLoading(false);
       setIsLoadingDocuments(false);
     };
@@ -128,11 +137,11 @@ export default function ClassroomPage() {
   }
 
   // Simulated content adaptation based on emotion
-  
-const handleEmotionDetected = (emotion: string) => {
-  console.log("Detected Emotion:", emotion)
-  // Add logic to adapt content here if needed
-}
+
+  const handleEmotionDetected = (emotion: string) => {
+    console.log("Detected Emotion:", emotion)
+    // Add logic to adapt content here if needed
+  }
 
   // Function to handle logout
   const handleLogout = async () => {
@@ -274,6 +283,26 @@ const handleEmotionDetected = (emotion: string) => {
     }
   };
 
+  const [classroom, setClassroom] = useState<Classroom | null>(null);
+  const [loadingRoomData, setLoadingRoomData] = useState(true);
+
+  useEffect(() => {
+    const fetchClassroom = async () => {
+      try {
+        const res = await fetch(`/api/classrooms/room-data?id=${classroomId}`);
+        const data = await res.json();
+        setClassroom(data.classroom[0]);
+        console.warn(data.classroom);
+      } catch (error) {
+        console.error("Error fetching classroom:", error);
+      } finally {
+        setLoadingRoomData(false);
+      }
+    };
+
+    fetchClassroom();
+  }, [classroomId]);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b bg-background">
@@ -285,8 +314,13 @@ const handleEmotionDetected = (emotion: string) => {
             </Link>
             <div className="h-4 w-px bg-muted" />
             <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
-              <span className="text-lg font-medium">Biology 101</span>
+              <BookOpen className="h-5 w-5" /> 
+              {!loadingRoomData && classroom && (
+                <div>
+                  <span className="text-lg font-medium">{classroom.name}&nbsp;</span>
+                  <span className="text-gray-400"> by {classroom.teacher_name}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -478,10 +512,10 @@ const handleEmotionDetected = (emotion: string) => {
         onSubmit={submitDocumentCompletion}
       />
 
-      <footer className="bg-white border-t border-gray-200 py-4 mt-8">
+      <footer className="bg-black border-t border-gray-400 py-4 mt-8">
         <div className="max-w-6xl mx-auto px-4">
-          <p className="text-center text-sm text-gray-500">
-            Dyslexia-Friendly Learning Platform • Created to help students with reading difficulties
+          <p className="text-center text-sm text-white">
+            © 2025 EduEase™ &nbsp;•&nbsp; All Rights Reserved &nbsp;•&nbsp; Created to help students with special needs
           </p>
         </div>
       </footer>
