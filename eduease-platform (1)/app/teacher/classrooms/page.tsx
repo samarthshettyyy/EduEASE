@@ -146,9 +146,11 @@ export default function TeacherClassroomsPage() {
   // Apply filters to classrooms
   const filteredClassrooms = classrooms.filter(classroom => {
     // Apply search filter
-    const matchesSearch = 
-      classroom.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (classroom.subject && classroom.subject.toLowerCase().includes(searchQuery.toLowerCase()));
+    const nameMatch = classroom.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const subjectMatch = classroom.subject?.toLowerCase().includes(searchQuery.toLowerCase());
+    return nameMatch || subjectMatch;
+  
+  
     
     // Apply status filter
     const matchesStatus = statusFilter === "all" || classroom.status === statusFilter;

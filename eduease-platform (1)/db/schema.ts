@@ -1,4 +1,4 @@
-import { int, mysqlTable, primaryKey, text, timestamp, varchar, json, float, enum as dbEnum } from "drizzle-orm/mysql-core";
+import { int, mysqlTable, primaryKey, text, timestamp, varchar, json, float,serial, enum as dbEnum } from "drizzle-orm/mysql-core";
 
 // Users table
 export const users = mysqlTable("users", {
@@ -98,6 +98,16 @@ export const modules = mysqlTable("modules", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   classroomId: int("classroom_id").notNull().references(() => classrooms.id, { onDelete: "cascade" }),
+  
+  // New fields to match your route.ts requirements
+  status: varchar("status", { length: 50 }).default("draft"),
+  studentProgress: float("student_progress").default(0),
+  dueDate: timestamp("due_date"),
+  chapters: int("chapters").default(0),
+  quizzes: int("quizzes").default(0),
+  isLocked: int("is_locked").default(0),
+  prerequisites: json("prerequisites"), // JSON array of prerequisite module IDs
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
@@ -247,3 +257,62 @@ export const messages = mysqlTable("messages", {
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+export const classroomContents = mysqlTable('classroom_contents', {
+  id: serial('id').primaryKey(),
+  chapterId: varchar('chapter_id', { length: 255 }),
+  title: varchar('title', { length: 255 }),
+  standardContent: text('standard_content'),
+  simplifiedContent: text('simplified_content'),
+  detailedContent: text('detailed_content'),
+  importantWords: json('important_words'),
+  quiz: json('quiz'),
+  settings: json('settings'),
+})
+// Add these to your schema.ts file
+
+export const mediaFiles = mysqlTable('media_files', {
+  id: serial('id').primaryKey(),
+  chapterId: varchar('chapter_id', { length: 255 }).notNull(),
+  type: varchar('type', { length: 100 }).notNull(),
+  filename: varchar('filename', { length: 255 }).notNull(),
+  url: varchar('url', { length: 2083 }).notNull(), // standard max URL length
+
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+export const chapterContent = mysqlTable('chapter_content', {
+  id: serial('id').primaryKey(),
+  chapterId: varchar('chapter_id',{ length: 20 }).notNull().unique(),
+  title: varchar('title',{ length: 50 }).notNull(),
+  standardContent: text('standard_content'),
+  simplifiedContent: text('simplified_content'),
+  detailedContent: text('detailed_content'),
+  importantWords: text('important_words'), // Stored as JSON string
+  quizQuestions: text('quiz_questions'), // Stored as JSON string
+  images: text('images'), // Stored as JSON string
+  settings: text('settings'), // Stored as JSON string
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+// 3D Model type
+export interface Model3DType {
+  id: string | number;
+  title: string;
+  description: string;
+  modelPath: string;
+  thumbnailPath?: string;
+  format: string;
+}
+
+// Interactive point for 3D models
+export interface InteractivePoint {
+  id: string | number;
+  modelId: string | number;
+  title: string;
+  description: string;
+  position: {
+    x: number;
+    y: number;
+    z: number;
+  };
+}
