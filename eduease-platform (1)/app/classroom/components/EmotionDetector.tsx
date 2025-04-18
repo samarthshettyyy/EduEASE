@@ -13,16 +13,22 @@ export function EmotionDetector({ onEmotionDetected }: EmotionDetectorProps) {
   const [isActive, setIsActive] = useState(false)
   const [currentEmotion, setCurrentEmotion] = useState("neutral")
 
-  // Simulate emotion detection
+  // Poll emotion from backend when toggle is ON
   useEffect(() => {
     if (!isActive) return
 
-    const emotions = ["neutral", "happy", "confused", "overwhelmed", "engaged"]
-    const interval = setInterval(() => {
-      const emotion = emotions[Math.floor(Math.random() * emotions.length)]
-      setCurrentEmotion(emotion)
-      onEmotionDetected(emotion)
-    }, 10000)
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/emotion')
+        const data = await res.json()
+        if (data?.emotion) {
+          setCurrentEmotion(data.emotion)
+          onEmotionDetected(data.emotion)
+        }
+      } catch (err) {
+        console.error('Failed to fetch emotion:', err)
+      }
+    }, 5000)
 
     return () => clearInterval(interval)
   }, [isActive, onEmotionDetected])
@@ -36,6 +42,7 @@ export function EmotionDetector({ onEmotionDetected }: EmotionDetectorProps) {
         </div>
         <CardDescription>Adapts content based on your emotional state</CardDescription>
       </CardHeader>
+
       {isActive && (
         <CardContent>
           <div className="flex items-center gap-2">
@@ -46,14 +53,21 @@ export function EmotionDetector({ onEmotionDetected }: EmotionDetectorProps) {
               <p className="text-sm">
                 Current state: <span className="font-medium">{currentEmotion}</span>
               </p>
+
               {currentEmotion === "overwhelmed" && (
-                <p className="text-xs text-muted-foreground mt-1">Content simplified to reduce cognitive load</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Content simplified to reduce cognitive load
+                </p>
               )}
               {currentEmotion === "confused" && (
-                <p className="text-xs text-muted-foreground mt-1">Additional explanations provided</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Additional explanations provided
+                </p>
               )}
               {currentEmotion === "engaged" && (
-                <p className="text-xs text-muted-foreground mt-1">Great job staying focused!</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Great job staying focused!
+                </p>
               )}
             </div>
           </div>

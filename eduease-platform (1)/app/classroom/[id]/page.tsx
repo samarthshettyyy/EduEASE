@@ -126,21 +126,11 @@ export default function ClassroomPage() {
   }
 
   // Simulated content adaptation based on emotion
-  const handleEmotionDetected = (emotion) => {
-    if (emotion === "overwhelmed") {
-      setContentLevel("simplified")
-      setEncouragementMessage("You're doing great! Take your time.")
-    } else if (emotion === "confused") {
-      setContentLevel("detailed")
-      setEncouragementMessage("It's okay to be confused. Let's break this down.")
-    } else if (emotion === "happy" || emotion === "engaged") {
-      setContentLevel("standard")
-      setEncouragementMessage("Excellent work! Keep it up!")
-    } else {
-      setContentLevel("standard")
-      setEncouragementMessage("")
-    }
-  }
+  
+const handleEmotionDetected = (emotion: string) => {
+  console.log("Detected Emotion:", emotion)
+  // Add logic to adapt content here if needed
+}
 
   // Function to handle logout
   const handleLogout = async () => {
