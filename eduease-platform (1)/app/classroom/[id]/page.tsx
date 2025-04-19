@@ -36,6 +36,8 @@ import ChatRoom from "../components/ChatRoom"
 import VideoCall from "../components/VideoCall"
 import CompletionModal from "../components/CompletionModal"
 import AccessibilityMenu from "../components/AccessibilityMenu"
+import AIQuizGenerator from "../components/AIQuizGenerator"
+import TalkToPDF from "../components/TalkToPDF"
 
 // Define the Model3D component to avoid the undefined error
 function Model3D(props) {
@@ -211,38 +213,66 @@ export default function ClassroomPage() {
   };
 
   // Load a document from the classroom document list
+  // Function to load module content when selected from DocumentList
   const loadDocument = async (documentId) => {
     setIsLoading(true);
     setProcessingError(null);
 
+    console.warn(documentId);
+
     try {
-      // Find the document in the classroom documents
-      const selectedDoc = classroomDocuments.find(doc => doc.id === documentId);
+      // Find the selected module in the modules array for metadata
+      const selectedDoc = modules.find(doc => doc.id === documentId);
+      if (!selectedDoc) {
+        throw new Error('Module not found in available modules');
+      }
+
       setSelectedDocument(selectedDoc);
 
-      // Mock document content
-      setTimeout(() => {
-        setDocumentData({
-          sessionId: `doc-${documentId}`,
-          filename: selectedDoc.name,
-          text: "This is sample content for the selected document. In a real implementation, this would be fetched from your API.",
-          sentences: [
-            "Mitochondria are membrane-bound cell organelles found in the cells of most eukaryotes, including animals, plants, and fungi.",
-            "They generate most of the chemical energy needed to power the cell's biochemical reactions by producing adenosine triphosphate (ATP) through a process called oxidative phosphorylation."
-          ],
-          importantWords: ["sample", "content", "document", "implementation", "API"],
-          extractionStats: {
-            extraction_method: "demo",
-            character_count: 114,
-            word_count: 21,
-            is_empty: false
-          }
-        });
-        setIsLoading(false);
-        setActiveTab("content");
-      }, 1000);
+      // Fetch the module content from the API
+      const response = await fetch(`/api/module-content/${documentId}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch module: ${response.statusText}`);
+      }
+
+      const moduleData = await response.json();
+
+      // Content level adaptation logic (if implemented)
+      let contentToShow = moduleData.content;
+      if (contentLevel === "simplified" && moduleData.simplifiedContent) {
+        contentToShow = moduleData.simplifiedContent;
+      } else if (contentLevel === "detailed" && moduleData.detailedContent) {
+        contentToShow = moduleData.detailedContent;
+      }
+
+      // Prepare the data in the format expected by DocumentViewer
+      setDocumentData({
+        sessionId: `module-${documentId}`,
+        filename: selectedDoc.name || moduleData.title,
+        text: contentToShow,
+        sentences: moduleData.sentences ||
+          (contentToShow?.split(/(?<=[.!?])\s+/) || []).filter(s => s.trim()),
+        initialImportantWords: moduleData.keywords || [],
+        extractionStats: moduleData.stats || {
+          extraction_method: "api",
+          character_count: contentToShow?.length || 0,
+          word_count: contentToShow?.split(/\s+/).length || 0,
+          is_empty: !contentToShow
+        }
+      });
+
+      // Update UI state
+      setIsLoading(false);
+      setActiveTab("content");
+
+      // Track module view (optional analytics)
+      // logModuleView(user.id, classroomId, documentId);
+
     } catch (error) {
-      console.error('Error loading document:', error);
+      console.error('Error loading module:', error);
+      setProcessingError(error instanceof Error ? error.message : 'Unknown error loading module');
       setIsLoading(false);
     }
   };
@@ -306,13 +336,13 @@ export default function ClassroomPage() {
   useEffect(() => {
     const addGoogleTranslateScript = () => {
       if (document.getElementById('google-translate-script')) return
-    
+
       const script = document.createElement('script')
       script.id = 'google-translate-script'
       script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit'
       script.async = true
       document.body.appendChild(script)
-    
+
       window.googleTranslateElementInit = () => {
         if (!document.getElementById('google_translate_element')?.innerHTML) {
           new window.google.translate.TranslateElement(
@@ -340,7 +370,7 @@ export default function ClassroomPage() {
             </Link>
             <div className="h-4 w-px bg-muted" />
             <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" /> 
+              <BookOpen className="h-5 w-5" />
               {!loadingRoomData && classroom && (
                 <div>
                   <span className="text-lg font-medium">{classroom.name}&nbsp;</span>
@@ -442,10 +472,11 @@ export default function ClassroomPage() {
 
             {!isLoading && (documentData || activeTab !== "content") && (
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="content">Content</TabsTrigger>
                   <TabsTrigger value="interactive">Interactive</TabsTrigger>
                   <TabsTrigger value="3d-models">3D Models</TabsTrigger>
+                  <TabsTrigger value="talk">Talk to PDF</TabsTrigger>
                   <TabsTrigger value="quiz">Quiz</TabsTrigger>
                 </TabsList>
 
@@ -496,6 +527,52 @@ export default function ClassroomPage() {
                 </TabsContent>
 
                 {/* Other tab contents would go here */}
+                <TabsContent value="quiz" className="space-y-4">
+                  {documentData ? (
+                    <AIQuizGenerator
+                      documentText={documentData.text}
+                      documentTitle={documentData.filename}
+                      numberOfQuestions={5}
+                      difficulty="medium"
+                      onQuizComplete={(score, total) => {
+                        // Optional: You can track quiz completion here
+                        console.log(`Quiz completed with score ${score}/${total}`);
+
+                        // Optional: Update the user's progress
+                        if (selectedDocument && score >= total * 0.7) {
+                          const updatedDocs = classroomDocuments.map(doc =>
+                            doc.id === selectedDocument.id
+                              ? { ...doc, quizCompleted: true }
+                              : doc
+                          );
+                          setClassroomDocuments(updatedDocs);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <Card>
+
+                    </Card>
+                  )}
+                </TabsContent>
+                <TabsContent value="talk" className="space-y-4">
+                  {documentData ? (
+                    <TalkToPDF
+                      documentText={documentData.text}
+                      documentTitle={documentData.filename}
+                      documentId={documentData.sessionId}
+                    />
+                  ) : (
+                    <Card>
+                      <div className="flex flex-col items-center justify-center py-8 text-center p-6">
+                        <CloudOff className="h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground">
+                          Please open a document to start asking questions.
+                        </p>
+                      </div>
+                    </Card>
+                  )}
+                </TabsContent>
               </Tabs>
             )}
           </div>

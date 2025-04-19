@@ -4,19 +4,19 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { 
-  BookOpen, 
-  PlusCircle, 
-  MessageSquare, 
-  BarChart, 
-  Mic, 
-  LogOut, 
-  Users, 
-  FileUp, 
-  Calendar, 
-  Video, 
-  Clock, 
-  CheckCircle, 
+import {
+  BookOpen,
+  PlusCircle,
+  MessageSquare,
+  BarChart,
+  Mic,
+  LogOut,
+  Users,
+  FileUp,
+  Calendar,
+  Video,
+  Clock,
+  CheckCircle,
   AlertTriangle,
   User,
   School,
@@ -32,20 +32,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import ClassroomCodeBanner from "@/components/teacher-classroom-code-banner"
 import { useClassroomStore } from "@/lib/store/classroom-store"
 import { toast } from "@/components/ui/use-toast"
+import VideoCall from "@/app/classroom/components/VideoCall"
 
 export default function TeacherDashboardPage() {
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
   const router = useRouter()
-  
+
   // Get classrooms from the store
-  
+
   // State for recently created classroom banner
   const [recentClassroom, setRecentClassroom] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showVideo, setShowVideo] = useState(false)
 
   const [error, setError] = useState("");
   const [classrooms, setClassrooms] = useState([]);
-  
+
   const user = JSON.parse(localStorage.getItem("user"));
   const teacherId = user.id; // Get teacher_id from the user object in localStorage
 
@@ -88,16 +90,16 @@ export default function TeacherDashboardPage() {
     )
   }
   if (error) return <div>Error: {error}</div>;
-  
+
   // Check if a classroom was just created by looking at session storage
   // useEffect(() => {
   //   const justCreatedClassroom = sessionStorage.getItem('justCreatedClassroom')
-    
+
   //   if (justCreatedClassroom) {
   //     try {
   //       const classroomData = JSON.parse(justCreatedClassroom)
   //       setRecentClassroom(classroomData)
-        
+
   //       // Clear from session storage so it doesn't show on refresh
   //       sessionStorage.removeItem('justCreatedClassroom')
   //     } catch (error) {
@@ -131,6 +133,9 @@ export default function TeacherDashboardPage() {
               <AvatarFallback>MJ</AvatarFallback>
             </Avatar>
           </div>
+          <Button variant="outline" size="icon" onClick={() => setShowVideo(!showVideo)}>
+            <Video className="h-4 w-4" />
+          </Button>
           <button
             onClick={handleLogout}
             className="flex items-center px-4 py-2 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
@@ -143,12 +148,12 @@ export default function TeacherDashboardPage() {
 
       {/* Recently created classroom banner */}
       {recentClassroom && (
-        <ClassroomCodeBanner 
-          classroom={recentClassroom} 
-          onDismiss={() => setRecentClassroom(null)} 
+        <ClassroomCodeBanner
+          classroom={recentClassroom}
+          onDismiss={() => setRecentClassroom(null)}
         />
       )}
-      
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card className="bg-card border shadow">
@@ -165,7 +170,7 @@ export default function TeacherDashboardPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-card border shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
@@ -180,7 +185,7 @@ export default function TeacherDashboardPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-card border shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
@@ -195,7 +200,7 @@ export default function TeacherDashboardPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-card border shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
@@ -211,7 +216,7 @@ export default function TeacherDashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         {/* Classrooms Section */}
         <div className="md:col-span-2">
@@ -279,7 +284,7 @@ export default function TeacherDashboardPage() {
                       </Link>
                     </div>
                   )}
-                  
+
                   {classrooms.length > 0 && (
                     <Link href="/teacher/classrooms/create">
                       <div className="border border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center h-[114px] hover:border-primary transition-all cursor-pointer">
@@ -300,6 +305,8 @@ export default function TeacherDashboardPage() {
             </CardFooter>
           </Card>
         </div>
+
+        {showVideo && <VideoCall userId={user.id} onClose={() => setShowVideo(false)} />}
 
         {/* Student Alerts */}
         <div className="md:col-span-1">
@@ -330,7 +337,7 @@ export default function TeacherDashboardPage() {
                     </Link>
                   </div>
                 </div>
-                
+
                 <div className="border-l-4 border-primary p-3 rounded-lg bg-primary/5">
                   <div className="flex justify-between items-start">
                     <h4 className="font-medium text-sm">Emma Lewis</h4>
@@ -348,7 +355,7 @@ export default function TeacherDashboardPage() {
                     </Link>
                   </div>
                 </div>
-                
+
                 <div className="border-l-4 border-primary p-3 rounded-lg bg-primary/5">
                   <div className="flex justify-between items-start">
                     <h4 className="font-medium text-sm">Noah Wilson</h4>
@@ -386,9 +393,9 @@ export default function TeacherDashboardPage() {
       >
         <Mic size={24} />
       </button>
-      
+
       {/* Voice Assistant Widget */}
-      <VoiceAssistantWidget 
+      <VoiceAssistantWidget
         isOpen={isVoiceAssistantOpen}
         onClose={() => setIsVoiceAssistantOpen(false)}
       />
