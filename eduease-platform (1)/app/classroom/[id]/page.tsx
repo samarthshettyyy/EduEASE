@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -85,6 +87,7 @@ export default function ClassroomPage() {
   const [classroomDocuments, setClassroomDocuments] = useState([])
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [modules, setModules] = useState([]);
+  const { theme, setTheme } = useTheme()
 
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -152,34 +155,34 @@ export default function ClassroomPage() {
 
   const navigateToNextModule = () => {
     if (!modules || modules.length === 0) return;
-    
+
     let nextIndex;
     if (currentModuleIndex >= modules.length - 1 || currentModuleIndex === -1) {
       nextIndex = 0; // Loop back to beginning if at end or no module selected
     } else {
       nextIndex = currentModuleIndex + 1;
     }
-    
+
     // Update the current module index
     setCurrentModuleIndex(nextIndex);
-    
+
     // Load the document
     loadDocument(modules[nextIndex].id);
   };
 
   const navigateToPreviousModule = () => {
     if (!modules || modules.length === 0) return;
-    
+
     let prevIndex;
     if (currentModuleIndex <= 0 || currentModuleIndex === -1) {
       prevIndex = modules.length - 1; // Loop to end if at beginning or no module selected
     } else {
       prevIndex = currentModuleIndex - 1;
     }
-    
+
     // Update the current module index
     setCurrentModuleIndex(prevIndex);
-    
+
     // Load the document
     loadDocument(modules[prevIndex].id);
   };
@@ -274,7 +277,7 @@ export default function ClassroomPage() {
       // Update the current module index
       const moduleIndex = modules.findIndex(doc => doc.id === documentId);
       setCurrentModuleIndex(moduleIndex);
-      
+
       setSelectedDocument(selectedDoc);
 
       // Rest of the existing loadDocument function
@@ -325,18 +328,18 @@ export default function ClassroomPage() {
   const renderNavigationButtons = () => {
     return (
       <div className="flex items-center gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={navigateToPreviousModule}
           disabled={modules.length === 0}
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Previous
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={navigateToNextModule}
           disabled={modules.length === 0}
         >
@@ -478,6 +481,18 @@ export default function ClassroomPage() {
             <Button variant="outline" size="icon" onClick={() => setShowVideo(!showVideo)}>
               <Video className="h-4 w-4" />
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+
             <Button
               onClick={handleLogout}
               className="flex items-center px-4 py-2 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"

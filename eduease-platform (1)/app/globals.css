@@ -122,11 +122,28 @@
   box-shadow: none !important;
 }
 
-#google_translate_element select{
-  background:#09090b;
-  color:#fff;
+/* ✅ Light mode (already in your file) */
+#google_translate_element select {
+  background: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
   border: none;
   cursor: pointer;
-  border-radius:3px;
-  padding:6px 8px;
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+
+/* ✅ Dark mode support (uses your theme variables) */
+html.dark #google_translate_element select {
+  background: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Force the google translate dropdown to take full width */
+#google_translate_element {
+  width: 100% !important;
+}
+
+#google_translate_element select.goog-te-combo {
+  width: 100% !important;      /* stretch the select to match button width */
+  box-sizing: border-box !important;
 }

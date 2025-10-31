@@ -12,6 +12,8 @@ import { Progress } from "@/components/ui/progress"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -87,6 +89,7 @@ export default function TeacherCourseModulesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showNewModuleDialog, setShowNewModuleDialog] = useState(false)
   const [newModuleTitle, setNewModuleTitle] = useState("")
+  const { theme, setTheme } = useTheme()
   const [newModuleDescription, setNewModuleDescription] = useState("")
 
   useEffect(() => {
@@ -105,13 +108,13 @@ export default function TeacherCourseModulesPage() {
     const matchesSearch =
       (module.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
       (module.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
-  
+
     if (activeTab === "all") return matchesSearch
     if (activeTab === "published") return matchesSearch && module.status === "published"
     if (activeTab === "draft") return matchesSearch && module.status === "draft"
     if (activeTab === "scheduled") return matchesSearch && module.status === "scheduled"
     if (activeTab === "archived") return matchesSearch && module.status === "archived"
-  
+
     return matchesSearch
   })
 
@@ -186,6 +189,18 @@ export default function TeacherCourseModulesPage() {
                 <BarChart className="h-4 w-4" />
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+
             <Button variant="outline" size="sm" className="gap-1">
               <Eye className="h-4 w-4" />
               Preview Course
@@ -254,8 +269,8 @@ export default function TeacherCourseModulesPage() {
                   <CardContent>
                     <div className="flex items-center gap-2">
                       <div className="text-3xl font-bold">
-                        {modules.length > 0 
-                          ? Math.round(modules.reduce((acc, m) => acc + m.studentProgress, 0) / modules.length) 
+                        {modules.length > 0
+                          ? Math.round(modules.reduce((acc, m) => acc + m.studentProgress, 0) / modules.length)
                           : 0}%
                       </div>
                       <div className="text-xs text-muted-foreground">by students</div>

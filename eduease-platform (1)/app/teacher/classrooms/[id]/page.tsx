@@ -4,7 +4,8 @@ import { Progress } from "@/components/ui/progress";
 
 import { Badge } from "@/components/ui/badge";
 import SimpleModelViewer from "@/components/SimpleModelViewer";
-
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -74,6 +75,7 @@ export default function TeacherClassroomPage() {
   const selectedChapter = classroomId;
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [images, setImages] = useState([]);
+  const { theme, setTheme } = useTheme()
   // Content management states
   const [contentTitle, setContentTitle] = useState("Cell Structure");
   const [contentText, setContentText] = useState(
@@ -249,7 +251,7 @@ export default function TeacherClassroomPage() {
         console.error("PDF import error:", err);
         alert(
           "Error importing PDF content: " +
-            (err instanceof Error ? err.message : String(err))
+          (err instanceof Error ? err.message : String(err))
         );
         setIsImporting(false);
       }
@@ -588,7 +590,7 @@ export default function TeacherClassroomPage() {
         enableVoiceNavigation,
       },
     };
-  
+
     try {
       const res = await fetch("/api/classroom/content", {
         method: "POST",
@@ -597,7 +599,7 @@ export default function TeacherClassroomPage() {
         },
         body: JSON.stringify(payload),
       });
-  
+
       const data = await res.json();
       if (res.ok) {
         alert("Content saved successfully!");
@@ -825,6 +827,18 @@ export default function TeacherClassroomPage() {
                 <SelectItem value="chinese">Chinese</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+
             <Link href="/teacher/classroom/biology-101/students">
               <Button variant="ghost" size="icon">
                 <Users className="h-4 w-4" />
@@ -1536,8 +1550,7 @@ export default function TeacherClassroomPage() {
                                 onClick={() => {
                                   const newQuestions = [...quizQuestions];
                                   newQuestions[index].options.push(
-                                    `Option ${
-                                      newQuestions[index].options.length + 1
+                                    `Option ${newQuestions[index].options.length + 1
                                     }`
                                   );
                                   setQuizQuestions(newQuestions);

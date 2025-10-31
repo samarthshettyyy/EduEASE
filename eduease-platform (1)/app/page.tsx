@@ -1,10 +1,17 @@
+"use client";
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { HeroSection } from "@/components/landing/hero-section"
 import { FeatureSection } from "@/components/landing/feature-section"
 import { TestimonialSection } from "@/components/landing/testimonial-section"
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
+
 
 export default function Home() {
+  const { theme, setTheme } = useTheme()
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b bg-background">
@@ -24,6 +31,18 @@ export default function Home() {
             </Link>
           </nav>
           <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+
             <Link href="/login">
               <Button variant="outline">Login</Button>
             </Link>

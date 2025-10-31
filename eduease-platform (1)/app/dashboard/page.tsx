@@ -12,6 +12,10 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { BookOpen, Video, MessageSquare, BarChart, Mic, LogOut } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
 
 export default function DashboardPage() {
 
@@ -20,13 +24,15 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null)
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false)
   const [userRole, setUserRole] = useState("student")
+  const { theme, setTheme } = useTheme()
+
 
   // Check authentication on component mount
   useEffect(() => {
     try {
       const userData = localStorage.getItem('user')
       console.warn("User data:", userData)
-      
+
       if (userData) {
         setUser(JSON.parse(userData))
       } else {
@@ -67,15 +73,29 @@ export default function DashboardPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <WelcomeMessage />
-        <button
-          onClick={handleLogout}
-          className="flex items-center px-4 py-2 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </button>
+        <div className="flex">
+          <Button
+            variant="outline"
+            className="mr-3"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center px-4 py-2 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </button>
+        </div>
       </div>
-            
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         {/* Left column - Today's Schedule */}
         <div className="md:col-span-2">
@@ -86,7 +106,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Right column - Rooms */}
         <div>
           <div className="rounded-lg border bg-card text-card-foreground shadow mb-6">
@@ -97,7 +117,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Three boxes in a row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         {/* Learning Progress */}
@@ -107,7 +127,7 @@ export default function DashboardPage() {
             <LearningProgress />
           </div>
         </div>
-        
+
         {/* Weekly Goals */}
         <div className="rounded-lg border bg-card text-card-foreground shadow">
           <div className="p-6">
@@ -120,7 +140,7 @@ export default function DashboardPage() {
               <div className="w-full bg-gray-100 rounded-full h-2.5">
                 <div className="bg-primary h-2.5 rounded-full" style={{ width: '60%' }}></div>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span>Practice 30 minutes daily</span>
                 <span className="font-medium">4/7 days</span>
@@ -131,7 +151,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Quick Actions */}
         <div className="rounded-lg border bg-card text-card-foreground shadow">
           <div className="p-6">
@@ -141,11 +161,11 @@ export default function DashboardPage() {
                 <BookOpen className="h-6 w-6 text-primary mb-2" />
                 <span className="text-sm">Start Lesson</span>
               </Link>
-              <Link href="/dashboard/video-sessions" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">   
-                <Video className="h-6 w-6 text-primary mb-2" /> 
-                <span className="text-sm">Join Session</span> 
+              <Link href="/dashboard/video-sessions" className="flex flex-col items-center justify-center p-4 rounded-lg border hover:bg-primary/5 transition-colors">
+                <Video className="h-6 w-6 text-primary mb-2" />
+                <span className="text-sm">Join Session</span>
               </Link>
-              <button 
+              <button
                 onClick={() => setIsVoiceAssistantOpen(true)}
                 className="flex flex-col items-center justify-center p-4 rounded-lg border bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-colors"
               >
@@ -160,7 +180,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Recommended Resources - Using the same width as Today's Schedule (2/3 width) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
@@ -174,11 +194,11 @@ export default function DashboardPage() {
       </div>
 
       {/* Voice Assistant Widget */}
-      <VoiceAssistantWidget 
+      <VoiceAssistantWidget
         isOpen={isVoiceAssistantOpen}
         onClose={() => setIsVoiceAssistantOpen(false)}
       />
-      
+
       {/* Optional floating button for quick access */}
       <button
         onClick={() => setIsVoiceAssistantOpen(true)}
