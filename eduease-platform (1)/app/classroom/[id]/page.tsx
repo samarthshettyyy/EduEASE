@@ -23,7 +23,8 @@ import {
   Video,
   AlertCircle,
   FileText,
-  CloudCog
+  CloudCog,
+  CloudOff
 } from "lucide-react"
 
 // Import our split components
@@ -93,6 +94,8 @@ export default function ClassroomPage() {
   const [comprehensionLevel, setComprehensionLevel] = useState("good")
   const [feedback, setFeedback] = useState("")
 
+  const [currentModuleIndex, setCurrentModuleIndex] = useState(-1);
+
   // State for content adaptation
   const [contentLevel, setContentLevel] = useState("standard")
   const [encouragementMessage, setEncouragementMessage] = useState("")
@@ -129,14 +132,57 @@ export default function ClassroomPage() {
   }, [classroomId]);
 
   const handleVoiceCommand = (cmd) => {
-    if (cmd.includes("read aloud")) {
-      setIsReading(true) // Toggle reading
+    if (cmd.toLowerCase().includes("read aloud")) {
+      setIsReading(true)
     }
 
-    if (cmd.includes("stop reading")) {
-      setIsReading(false) // Toggle reading
+    if (cmd.toLowerCase().includes("stop reading")) {
+      setIsReading(false)
+    }
+
+    // Handle module navigation commands
+    if (cmd.toLowerCase().includes("next module")) {
+      navigateToNextModule();
+    }
+
+    if (cmd.toLowerCase().includes("previous module")) {
+      navigateToPreviousModule();
     }
   }
+
+  const navigateToNextModule = () => {
+    if (!modules || modules.length === 0) return;
+    
+    let nextIndex;
+    if (currentModuleIndex >= modules.length - 1 || currentModuleIndex === -1) {
+      nextIndex = 0; // Loop back to beginning if at end or no module selected
+    } else {
+      nextIndex = currentModuleIndex + 1;
+    }
+    
+    // Update the current module index
+    setCurrentModuleIndex(nextIndex);
+    
+    // Load the document
+    loadDocument(modules[nextIndex].id);
+  };
+
+  const navigateToPreviousModule = () => {
+    if (!modules || modules.length === 0) return;
+    
+    let prevIndex;
+    if (currentModuleIndex <= 0 || currentModuleIndex === -1) {
+      prevIndex = modules.length - 1; // Loop to end if at beginning or no module selected
+    } else {
+      prevIndex = currentModuleIndex - 1;
+    }
+    
+    // Update the current module index
+    setCurrentModuleIndex(prevIndex);
+    
+    // Load the document
+    loadDocument(modules[prevIndex].id);
+  };
 
   // Simulated content adaptation based on emotion
 
@@ -218,18 +264,20 @@ export default function ClassroomPage() {
     setIsLoading(true);
     setProcessingError(null);
 
-    console.warn(documentId);
-
     try {
-      // Find the selected module in the modules array for metadata
+      // Find the selected module in the modules array
       const selectedDoc = modules.find(doc => doc.id === documentId);
       if (!selectedDoc) {
         throw new Error('Module not found in available modules');
       }
 
+      // Update the current module index
+      const moduleIndex = modules.findIndex(doc => doc.id === documentId);
+      setCurrentModuleIndex(moduleIndex);
+      
       setSelectedDocument(selectedDoc);
 
-      // Fetch the module content from the API
+      // Rest of the existing loadDocument function
       const response = await fetch(`/api/module-content/${documentId}`);
 
       if (!response.ok) {
@@ -267,14 +315,36 @@ export default function ClassroomPage() {
       setIsLoading(false);
       setActiveTab("content");
 
-      // Track module view (optional analytics)
-      // logModuleView(user.id, classroomId, documentId);
-
     } catch (error) {
       console.error('Error loading module:', error);
       setProcessingError(error instanceof Error ? error.message : 'Unknown error loading module');
       setIsLoading(false);
     }
+  };
+
+  const renderNavigationButtons = () => {
+    return (
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={navigateToPreviousModule}
+          disabled={modules.length === 0}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Previous
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={navigateToNextModule}
+          disabled={modules.length === 0}
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+    );
   };
 
   // Handle marking a document as completed
@@ -369,15 +439,6 @@ export default function ClassroomPage() {
               <span>Back to Dashboard</span>
             </Link>
             <div className="h-4 w-px bg-muted" />
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
-              {!loadingRoomData && classroom && (
-                <div>
-                  <span className="text-lg font-medium">{classroom.name}&nbsp;</span>
-                  <span className="text-gray-400"> by {classroom.teacher_name}</span>
-                </div>
-              )}
-            </div>
           </div>
           <div className="flex items-center gap-3">
             {/* Only show file upload button for teachers */}
@@ -433,17 +494,16 @@ export default function ClassroomPage() {
           {/* Main Content Area - 2/3 width on desktop */}
           <div className="md:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold">Chapter 3: Cell Structure</h1>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm">
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
+                <BookOpen className="h-5 w-5" />
+                {!loadingRoomData && classroom && (
+                  <div>
+                    <span className="text-lg font-medium">{classroom.name}&nbsp;</span>
+                    <span className="text-gray-400"> by {classroom.teacher_name}</span>
+                  </div>
+                )}
               </div>
+              {renderNavigationButtons()}
             </div>
 
             {encouragementMessage && (

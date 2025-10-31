@@ -71,20 +71,9 @@ export default function TeacherClassroomPage() {
   const [activeTab, setActiveTab] = useState("content");
   const [previewMode, setPreviewMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedChapter, setSelectedChapter] = useState("chapter-3");
+  const selectedChapter = classroomId;
   const [showPublishDialog, setShowPublishDialog] = useState(false);
-  const [images, setImages] = useState([
-    {
-      id: "img1",
-      url: "/placeholder.svg?height=200&width=300",
-      caption: "Cell structure diagram",
-    },
-    {
-      id: "img2",
-      url: "/placeholder.svg?height=200&width=300",
-      caption: "Cell membrane structure",
-    },
-  ]);
+  const [images, setImages] = useState([]);
   // Content management states
   const [contentTitle, setContentTitle] = useState("Cell Structure");
   const [contentText, setContentText] = useState(
@@ -583,7 +572,7 @@ export default function TeacherClassroomPage() {
   // Save content function that includes quiz questions
   const saveContent = async () => {
     const payload = {
-      chapterId: selectedChapter,
+      chapterId: classroomId,
       title: contentTitle,
       standardContent,
       simplifiedContent,
@@ -856,29 +845,6 @@ export default function TeacherClassroomPage() {
           <div className="md:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Select
-                  value={selectedChapter}
-                  onValueChange={setSelectedChapter}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="chapter-1">
-                      Chapter 1: Introduction
-                    </SelectItem>
-                    <SelectItem value="chapter-2">
-                      Chapter 2: Cell Theory
-                    </SelectItem>
-                    <SelectItem value="chapter-3">
-                      Chapter 3: Cell Structure
-                    </SelectItem>
-                    <SelectItem value="chapter-4">
-                      Chapter 4: Cell Function
-                    </SelectItem>
-                    <SelectItem value="add-new">+ Add New Chapter</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Input
                   value={contentTitle}
                   onChange={(e) => setContentTitle(e.target.value)}
@@ -1036,8 +1002,6 @@ export default function TeacherClassroomPage() {
                     </div>
                   </CardContent>
                 </Card>
-                // Updated Images and Media section for page.tsx // Replace the
-                existing Images and Media card with this version
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle>Images and Media</CardTitle>

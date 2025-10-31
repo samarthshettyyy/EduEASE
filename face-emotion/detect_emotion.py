@@ -62,7 +62,7 @@ try:
             print("No face detected.")
 
         # Wait 30 seconds before the next detection
-        time.sleep(30)
+        time.sleep(3)
 
 except KeyboardInterrupt:
     print("Interrupted by user. Exiting...")
